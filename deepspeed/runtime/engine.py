@@ -100,6 +100,7 @@ def print_configuration(args, name):
 class DeepSpeedEngine(Module):
     r"""DeepSpeed engine for training.
     """
+
     def __init__(self,
                  args,
                  model,
@@ -1725,6 +1726,7 @@ class DeepSpeedEngine(Module):
             dp_world_size=self.dp_world_size,
             mp_world_size=self.mp_world_size,
         )
+
         state.update(client_state)
 
         log_dist(message=f'Saving model checkpoint: {save_path}', ranks=[0])

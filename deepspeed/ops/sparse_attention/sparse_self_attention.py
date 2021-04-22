@@ -53,14 +53,15 @@ class SparseSelfAttention(nn.Module):
     def get_layout(self, L):
         # if layout is never synchronized across GPUs, broadcast the layout from global rank 0
         if self._need_layout_synchronization and dist.is_initialized():
-            if self.mpu is not None:
-                data_parallel_group = self.mpu.get_data_parallel_group()
-                src_rank = self.mpu.get_data_parallel_src_rank()
-            else:
-                src_rank = 0
-                data_parallel_group = None
-            dist.broadcast(self.master_layout, src=src_rank,
-                           group=data_parallel_group)
+            dist.broadcast(self.master_layout, src=0)
+            #             if self.mpu is not None:
+            #                 data_parallel_group = self.mpu.get_data_parallel_group()
+            #                 src_rank = self.mpu.get_data_parallel_src_rank()
+            #             else:
+            #                 src_rank = 0
+            #                 data_parallel_group = None
+            #             dist.broadcast(self.master_layout, src=src_rank,
+            #                            group=data_parallel_group)
             self._need_layout_synchronization = False
 
         if (L % self.sparsity_config.block != 0):

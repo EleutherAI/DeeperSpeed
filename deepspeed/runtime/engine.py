@@ -1526,7 +1526,7 @@ class DeepSpeedEngine(Module):
                                                          load_optimizer_states=load_optimizer_states,
                                                          load_lr_scheduler_states=load_lr_scheduler_states)
 
-        if self.zero_optimization() and load_path is not None:
+        if self.zero_optimization() and load_path is not None and load_optimizer_states:
             self._load_zero_checkpoint(load_dir,
                                        tag,
                                        load_optimizer_states=load_optimizer_states)

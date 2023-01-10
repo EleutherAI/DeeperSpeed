@@ -101,6 +101,7 @@ class ResourceManager:
         exp["result_dir"] = os.path.join(self.results_dir, exp['name'])
         exp["hostfile"] = self.args.hostfile
         exp["launcher"] = self.args.launcher
+        exp["no_ssh_check"] = self.args.ssh_check
         if self.args.launcher == 'slurm' and hasattr(self.args, 'comment'):
             exp["comment"] = self.args.comment
         user_script = self.args.user_script
@@ -343,6 +344,8 @@ def run_experiment(exp: dict, reservations, user_script, user_args):
         launcher_args += ["--hostfile", hostfile]
     if 'comment' in exp:
         launcher_args += ["--comment", exp["comment"]]
+    if exp['no_ssh_check']:
+        launcher_args += ["--no_ssh_check"]
     exp["launcher_args"] = launcher_args
     logger.debug(f'launcher args={exp["launcher_args"]}')
 

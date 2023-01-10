@@ -97,6 +97,7 @@ class ResourceManager:
 
     def run_job(self, exp: dict, reservations):
         exp_id = exp["exp_id"]
+        exp["master_addr"] = self.args.master_addr
         exp["master_port"] = self.args.master_port + exp_id
         exp["result_dir"] = os.path.join(self.results_dir, exp['name'])
         exp["hostfile"] = self.args.hostfile
@@ -330,9 +331,12 @@ def run_experiment(exp: dict, reservations, user_script, user_args):
         slots = ",".join(map(str, reservation.slots))
         include_str += f"{reservation.node.host}:{slots}@"
     include_str = include_str[:-1]
+    master_addr = exp["master_addr"]
     master_port = exp["master_port"]
     hostfile = exp["hostfile"]
     launcher_args = ["--launcher", exp["launcher"]]
+    if master_addr:
+        launcher_args += ["--master_addr", master_addr]
     if exp["launcher"] not in (MVAPICH_LAUNCHER, OPENMPI_LAUNCHER, SLURM_LAUNCHER):
         launcher_args += [
             "--include",

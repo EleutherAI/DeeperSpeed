@@ -2220,10 +2220,10 @@ class DeepSpeedEngine(Module):
                 )
             self.flops_profiler.end_profile()
 
-        #if self.autotuning_enabled() and self.global_steps == (
-        #        self.autotuning_end_profile_step() + 1):
-        if self.global_steps == 31:
-            print(f'Exiting auotuning')
+        if self.autotuning_enabled() and self.global_steps == (
+                self.autotuning_end_profile_step() + 1):
+        #if self.global_steps == 31:
+            #print(f'Exiting auotuning')
             self._autotuning_exit()
 
         if self.wall_clock_breakdown():

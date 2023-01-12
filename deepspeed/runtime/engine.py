@@ -2210,6 +2210,12 @@ class DeepSpeedEngine(Module):
         if flops_profiler_active:
             if self.autotuning_enabled():
                 self.flops = self.flops_profiler.get_total_flops() * 3
+                self.flops_profiler.print_model_profile(
+                    profile_step=self.global_steps,
+                    module_depth=self.flops_profiler_module_depth(),
+                    top_modules=self.flops_profiler_top_modules(),
+                    detailed=True,
+                )
             else:
                 self.flops_profiler.print_model_profile(
                     profile_step=self.global_steps,

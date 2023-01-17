@@ -641,8 +641,7 @@ class DeepSpeedEngine(Module):
         return self._config.memory_breakdown
 
     def autotuning_enabled(self):
-        #return self._config.autotuning_config.enabled
-        return True
+        return self._config.autotuning_config.enabled
 
     def autotuning_start_profile_step(self):
         return self._config.autotuning_config.start_profile_step
@@ -2216,20 +2215,10 @@ class DeepSpeedEngine(Module):
                     top_modules=self.flops_profiler_top_modules(),
                     detailed=True,
                 )
-            else:
-                self.flops_profiler.print_model_profile(
-                    profile_step=self.global_steps,
-                    module_depth=self.flops_profiler_module_depth(),
-                    top_modules=self.flops_profiler_top_modules(),
-                    detailed=self.flops_profiler_detailed(),
-                    output_file=self.flops_profiler_output_file(),
-                )
             self.flops_profiler.end_profile()
 
         if self.autotuning_enabled() and self.global_steps == (
                 self.autotuning_end_profile_step() + 1):
-        #if self.global_steps == 31:
-            #print(f'Exiting auotuning')
             self._autotuning_exit()
 
         if self.wall_clock_breakdown():

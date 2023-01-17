@@ -1003,11 +1003,9 @@ class DeepSpeedEngine(Module):
             args.local_rank = self.local_rank
 
         if self.config is None:
-            print(f'#### Setting config here, config ')
             self.config = (args.deepspeed_config
                            if hasattr(args,
                                       "deepspeed_config") else None)
-        print(self.config)
         self._config = DeepSpeedConfig(self.config, mpu)
 
     # Validate command line arguments
@@ -1852,11 +1850,10 @@ class DeepSpeedEngine(Module):
         if self.autotuning_profile_model_info():
             activation_mem = get_ma_status() - ma
             self.autotuning_model_info["activation_mem_per_gpu"] = activation_mem
-            print(self.autotuning_model_info)
             print_json_dist(self.autotuning_model_info,
                             [0],
                             path=self.autotuning_model_info_path())
-            #exit()
+            exit()
         else:
             see_memory_usage("Engine after forward", force=self.memory_breakdown())
         return loss
@@ -2214,7 +2211,8 @@ class DeepSpeedEngine(Module):
                     profile_step=self.global_steps,
                     module_depth=self.flops_profiler_module_depth(),
                     top_modules=self.flops_profiler_top_modules(),
-                    detailed=True,
+                    detailed=self.flops_profiler_detailed(),
+                    output_file=self.flops_profiler_output_file(),
                 )
             self.flops_profiler.end_profile()
 

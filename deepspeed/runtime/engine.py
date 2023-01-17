@@ -665,8 +665,6 @@ class DeepSpeedEngine(Module):
         return self._config.autotuning_config.metric
 
     def autotuning_profile_model_info(self):
-        #print(f'Autotuning enabled: {self.autotuning_enabled()}')
-        #print(f'Model info: {self._config.autotuning_config}')
         return (
             self.autotuning_enabled() and
             self._config.autotuning_config.model_info and
@@ -2263,9 +2261,9 @@ class DeepSpeedEngine(Module):
             titer = msg[FORWARD_GLOBAL_TIMER] + msg[BACKWARD_GLOBAL_TIMER] + msg[
                 STEP_GLOBAL_TIMER]
             msg["latency"] = titer
-            msg["FLOPS_per_gpu"] = self.flops * 1000 * self.gradient_accumulation_steps(
+            msg["FLOPS_per_gpu"] = self.flops * 1_000_000 * self.gradient_accumulation_steps(
             ) / titer
-            msg["throughput"] = self.train_batch_size() * 1000 / \
+            msg["throughput"] = self.train_batch_size() * 1_000_000 / \
                 msg["latency"]
             print_json_dist(msg, [0], path=self.autotuning_metric_path())
             log_dist(

@@ -50,11 +50,18 @@ def get_default_compute_capatabilities():
 def assert_no_cuda_mismatch():
     cuda_major, cuda_minor = installed_cuda_version()
     sys_cuda_version = f'{cuda_major}.{cuda_minor}'
-    torch_cuda_version = ".".join(torch.version.cuda.split('.')[:2])
+    torch_cuda_major, torch_cuda_minor = torch.version.cuda.split('.')[:2]
+    torch_cuda_version = ".".join((torch_cuda_major, torch_cuda_minor))
     # This is a show-stopping error, should probably not proceed past this
     if sys_cuda_version != torch_cuda_version:
+        # This seems legit, but I am not sure if it works with all versions
+        # if cuda_major == torch_cuda_major and int(cuda_minor) >= int(torch_cuda_minor):
+        #     return
         if sys_cuda_version == "11.1" and torch_cuda_version == "11.0":
             # it works to build against installed cuda-11.1 while torch was built with cuda-11.0
+            return
+        if sys_cuda_version == "11.4" and torch_cuda_version == "11.3":
+            # it works to build against installed cuda-11.4 while torch was built with cuda-11.3
             return
         raise Exception(
             f"Installed CUDA version {sys_cuda_version} does not match the "

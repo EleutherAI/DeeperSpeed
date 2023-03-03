@@ -170,6 +170,61 @@ class OpenMPIRunner(MultiNodeRunner):
                                                         ] + self.user_arguments
 
 
+class JSRunner(MultiNodeRunner):
+    def __init__(self, args, world_info_base64, resource_pool):
+        super().__init__(args, world_info_base64)
+        self.resource_pool = resource_pool
+        #self.add_export('UCX_TLS', 'tcp')
+
+    def backend_exists(self):
+        #TODO: if IB is available we should suggestion mvapich
+        #This ompi check will still work for jsrun since spectrum-mpi is based on ompi
+        return shutil.which('ompi_info')
+
+    @property
+    def name(self):
+        return "jsrun"
+
+    def validate_args(self):
+        super().validate_args()
+        #TODO: Allow for include/exclude at node-level but not gpu-level
+        if self.args.include != "" or self.args.exclude != "":
+            raise ValueError(
+                f"{self.name} backend does not support worker include/exclusion")
+        if self.args.num_nodes != -1 or self.args.num_gpus != -1:
+            raise ValueError(
+                f"{self.name} backend does not support limiting num nodes/gpus")
+
+    def get_cmd(self, environment, active_resources):
+        total_process_count = sum(self.resource_pool.values())
+
+        jsrun_cmd = [
+            'jsrun',
+            '-n',
+            f'{total_process_count}',
+            '-c',
+            7,
+            '-g',
+            1,
+            '-a',
+            1,
+
+        ] + split(self.args.launcher_args)
+
+        export_cmd = []
+        for k, v in self.exports.items():
+            export_cmd += ['-E', "{}={}".format(k, v)]
+
+        python_exec = []
+        if not self.args.no_python:
+            python_exec = [sys.executable, "-u"]
+            if self.args.module:
+                python_exec.append("-m")
+
+        return jsrun + export_cmd + python_exec + [self.user_script
+                                                        ] + self.user_arguments
+
+
 class MPICHRunner(MultiNodeRunner):
     def __init__(self, args, world_info_base64, resource_pool):
         super().__init__(args, world_info_base64)

@@ -221,7 +221,7 @@ class JSRunner(MultiNodeRunner):
             if self.args.module:
                 python_exec.append("-m")
 
-        return jsrun + export_cmd + python_exec + [self.user_script
+        return jsrun_cmd + export_cmd + python_exec + [self.user_script
                                                         ] + self.user_arguments
 
 

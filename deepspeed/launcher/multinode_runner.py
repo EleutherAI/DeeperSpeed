@@ -203,11 +203,11 @@ class JSRunner(MultiNodeRunner):
             '-n',
             f'{total_process_count}',
             '-c',
-            7,
+            f'{7}',
             '-g',
-            1,
+            f'{1}',
             '-a',
-            1,
+            f'{1}',
 
         ] + split(self.args.launcher_args)
 

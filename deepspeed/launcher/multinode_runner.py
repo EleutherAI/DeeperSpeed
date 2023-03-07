@@ -174,7 +174,7 @@ class JSRunner(MultiNodeRunner):
     def __init__(self, args, world_info_base64, resource_pool):
         super().__init__(args, world_info_base64)
         self.resource_pool = resource_pool
-        #self.add_export('UCX_TLS', 'tcp')
+        self.add_export('CUDA_VISIBLE_DEVICES', '0,1,2,3,4,5')
 
     def backend_exists(self):
         #TODO: if IB is available we should suggestion mvapich

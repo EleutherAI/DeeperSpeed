@@ -1,9 +1,6 @@
 # Copyright 2019 The Microsoft DeepSpeed Team
 
-from deepspeed.utils import logger
-
-import torch.distributed as dist
-import sys
+from deepspeed import comm as dist
 
 from collections import namedtuple
 from itertools import product as cartesian_product
@@ -194,7 +191,7 @@ class ProcessTopology:
             return True
 
         coords = filter(_filter_helper, self.mapping.keys())
-        return [self.mapping[coo] for coo in coords]
+        return [self.mapping[coord] for coord in coords]
 
     def get_axis_list(self, axis, idx):
         """Returns the list of global ranks whose coordinate in an axis is idx.
@@ -236,7 +233,7 @@ def _prime_factors(N):
 
 
 class PipeDataParallelTopology(ProcessTopology):
-    """ A topology specialiation for hybrid data and pipeline parallelism.
+    """ A topology specialization for hybrid data and pipeline parallelism.
 
         Uses data parallelism on the last dimension to encourage gradient
         reductions to use high-bandwidth intra-node links and lower-volume
@@ -297,6 +294,7 @@ class PipelineParallelGrid:
         self.data_parallel_size = max(self._topo.get_dim('data'), 1)
         self.pipe_parallel_size = max(self._topo.get_dim('pipe'), 1)
         self.model_parallel_size = max(self._topo.get_dim('model'), 1)
+        self.slice_parallel_size = self.model_parallel_size
         assert self._is_grid_valid(), "Invalid Grid"
 
         self.stage_id = self.get_stage_id()
@@ -461,7 +459,7 @@ class PipelineParallelGrid:
             return 0
 
     def get_slice_parallel_world_size(self):
-        self.slice_parallel_size
+        return self.slice_parallel_size
 
     def get_slice_parallel_group(self):
         return self.slice_proc_group

@@ -3,12 +3,11 @@ Copyright 2020 The Microsoft DeepSpeed Team
 '''
 import json
 import math
-import importlib
 import torch
 from torch import nn
 from torch.autograd import Function
-
-from ..op_builder import TransformerBuilder, StochasticTransformerBuilder
+from deepspeed.accelerator import get_accelerator
+from deepspeed.ops.op_builder import TransformerBuilder, StochasticTransformerBuilder
 
 # Cuda modules will be imported if needed
 transformer_cuda_module = None
@@ -41,8 +40,6 @@ class DeepSpeedTransformerConfig(TransformerConfig):
 
         Arguments:
             batch_size: The maximum batch size used for running the kernel on each GPU
-
-            max_seq_length: The sequence-length of the model being trained with DeepSpeed
 
             hidden_size: The hidden size of the transformer layer
 
@@ -88,7 +85,7 @@ class DeepSpeedTransformerConfig(TransformerConfig):
                 a high accuracy level. On the other hand, for the downstream tasks, such as fine-tuning, we recommend
                 to turn it off in order to be able to reproduce the same result through the regular kernel execution.
 
-            huggingface: Enbale if using the HuggingFace interface style for sending out the forward results.
+            return_tuple: Enable if using the return_tuple interface style for sending out the forward results.
 
             training: Enable for training rather than inference.
     """
@@ -111,7 +108,7 @@ class DeepSpeedTransformerConfig(TransformerConfig):
                  adjust_init_range=True,
                  attn_dropout_checkpoint=False,
                  stochastic_mode=False,
-                 huggingface=False,
+                 return_tuple=False,
                  training=True):
         super(DeepSpeedTransformerConfig,
               self).__init__(
@@ -136,7 +133,7 @@ class DeepSpeedTransformerConfig(TransformerConfig):
         self.is_grad_enabled = True
         self.attn_dropout_checkpoint = attn_dropout_checkpoint
         self.stochastic_mode = stochastic_mode
-        self.huggingface = huggingface
+        self.return_tuple = return_tuple
 
     @classmethod
     def from_dict(cls, json_object):
@@ -173,11 +170,6 @@ class DeepSpeedTransformerFunction(Function):
                 norm_w,
                 norm_b,
                 config):
-
-        bsz = input.shape[0]
-
-        if bsz > config.batch_size:
-            raise ValueError('Input batch size exceeds the limit.')
 
         cuda_module = stochastic_transformer_cuda_module if config.stochastic_mode else transformer_cuda_module
         forward_func = cuda_module.forward_fp16 if config.fp16 else cuda_module.forward_fp32
@@ -225,7 +217,7 @@ class DeepSpeedTransformerFunction(Function):
                                          output_b,
                                          norm_w,
                                          norm_b,
-                                         config.training,
+                                         config.training and config.is_grad_enabled,
                                          config.pre_layer_norm,
                                          config.attn_dropout_checkpoint,
                                          config.normalize_invertible,
@@ -323,7 +315,7 @@ class DeepSpeedTransformerFunction(Function):
         if inp_size[1] % 16 != 0:
             output = torch.narrow(output, 1, 0, inp_size[1])
 
-        if config.huggingface:
+        if config.return_tuple:
             return (output, )  # outputs -> (output) : outputs[0] = output
         else:
             return output
@@ -335,9 +327,6 @@ class DeepSpeedTransformerFunction(Function):
         if grad_output_shape[1] % 16 != 0:
             grad_output = torch.cat((grad_output, torch.zeros((bsz, (16 - (grad_output_shape[1] % 16)), \
                                         grad_output_shape[2]), device=grad_output.device, dtype=grad_output.dtype)), 1)
-
-        if bsz > ctx.config.batch_size:
-            raise ValueError('grad_output batch size exceeds the limit.')
 
         assert ctx.config.training
 
@@ -492,7 +481,7 @@ class DeepSpeedTransformerLayer(nn.Module):
         print("DeepSpeed Transformer config is ", self.config.__dict__)
 
         if self.config.local_rank >= 0:
-            torch.cuda.set_device(self.config.local_rank)
+            get_accelerator().set_device(self.config.local_rank)
 
         if initial_weights is None and initial_biases is None:
             self.attn_qkvw = nn.Parameter(
@@ -518,12 +507,14 @@ class DeepSpeedTransformerLayer(nn.Module):
             self.init_transformer_weights(self.config.adjust_init_range)
         else:
             # For testing only.
-            self.attn_qkvw = nn.Parameter(
-                torch.Tensor(self.config.hidden_size * 3,
-                             self.config.hidden_size))
-            for i in range(3):
-                self.attn_qkvw[i * self.config.hidden_size:(i + 1) * self.config.hidden_size] = \
-                    torch.empty_like(initial_weights[i]).copy_(initial_weights[i])
+            q = initial_weights[0].data
+            k = initial_weights[1].data
+            v = initial_weights[2].data
+
+            self.attn_qkvw = nn.Parameter(torch.cat((q, k, v)))
+            #self.attn_qkvw[i * self.config.hidden_size:(i + 1) * self.config.hidden_size] = \
+            #    initial_weights[i].clone()
+            #torch.empty_like(initial_weights[i]).data.copy_(initial_weights[i].data)
             self.attn_qkvb = nn.Parameter(torch.Tensor(self.config.hidden_size * 3))
             self.attn_qkvb.data.zero_()
             self.attn_ow = initial_weights[3]
@@ -588,12 +579,14 @@ class DeepSpeedTransformerLayer(nn.Module):
                 hidden_states,
                 attention_mask=None,
                 head_mask=None,
+                layer_head_mask=None,
                 encoder_hidden_states=None,
                 encoder_attention_mask=None,
+                past_key_value=None,
                 output_attentions=False,
                 grads=None):
-        self.config.training = self.training
         self.config.is_grad_enabled = torch.is_grad_enabled()
+        self.config.training = self.training
         return DeepSpeedTransformerFunction.apply(hidden_states,
                                                   attention_mask,
                                                   self,

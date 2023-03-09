@@ -3,12 +3,16 @@ Copyright 2020 The Microsoft DeepSpeed Team
 '''
 import types
 import torch
-import importlib
 import numpy as np
+<<<<<<< HEAD
 import time
 import torch.distributed as dist
 
 from deepspeed.utils.logging import logger
+=======
+from deepspeed.accelerator import get_accelerator
+from deepspeed import comm as dist
+>>>>>>> master
 
 
 class OnebitAdam(torch.optim.Optimizer):
@@ -37,7 +41,11 @@ class OnebitAdam(torch.optim.Optimizer):
         cuda_aware (boolean, required): Set True if the underlying MPI implementation
             supports CUDA-Aware communication. (default: False)
         comm_backend_name (string, optional): Set to 'mpi' if needed. (default: 'nccl')
+<<<<<<< HEAD
     .. _Adam\: A Method for Stochastic Optimization:
+=======
+    .. _Adam\\: A Method for Stochastic Optimization:
+>>>>>>> master
         https://arxiv.org/abs/1412.6980
     .. _On the Convergence of Adam and Beyond:
         https://openreview.net/forum?id=ryQu7f-RZ
@@ -115,7 +123,7 @@ class OnebitAdam(torch.optim.Optimizer):
             grads (list of tensors, optional): weight gradient to use for the
                 optimizer update. If gradients have type torch.half, parameters
                 are expected to be in type torch.float. (default: None)
-            output params (list of tensors, optional): A reduced recision copy
+            output params (list of tensors, optional): A reduced precision copy
                 of the updated weights written out in addition to the regular
                 updated weights. Have to be of same type as gradients. (default: None)
             scale (float, optional): factor to divide gradient tensor values
@@ -167,6 +175,8 @@ class OnebitAdam(torch.optim.Optimizer):
                     # Exponential moving average of squared gradient values
                     state['exp_avg_sq'] = torch.zeros_like(p.data)
 
+                if not self.initialize or (self.adam_freeze_key
+                                           and 'worker_error' not in state.keys()):
                     state['tensor_size'] = torch.numel(p.data)
                     state['corrected_tensor_size'] = state['tensor_size']
 
@@ -176,17 +186,14 @@ class OnebitAdam(torch.optim.Optimizer):
                                                             (self.size * self.divider)))
                     state['server_chunk_size'] = state[
                         'corrected_tensor_size'] // self.size
-
-                if not self.initialize or (self.adam_freeze_key
-                                           and 'worker_error' not in state.keys()):
-                    torch.cuda.empty_cache()
+                    get_accelerator().empty_cache()
                     state['worker_error'] = torch.zeros(state['corrected_tensor_size'],
                                                         device=p.device)
                     state['server_error'] = torch.zeros(state['server_chunk_size'],
                                                         device=p.device)
-                    torch.cuda.empty_cache()
+                    get_accelerator().empty_cache()
                     self.adam_freeze_key = True
-                    if not self.initialize and torch.distributed.get_rank() == 0:
+                    if not self.initialize and dist.get_rank() == 0:
                         print("Cupy Buffers Initialized Successfully.")
 
                 exp_avg, exp_avg_sq = state['exp_avg'], state['exp_avg_sq']
@@ -205,7 +212,7 @@ class OnebitAdam(torch.optim.Optimizer):
                     if 'non_freeze' in group.keys() and group['non_freeze'] is True:
                         dist.all_reduce(grad)
                         grad.mul_(1 / dist.get_world_size())
-                        exp_avg.mul_(beta1).add(1 - beta1, grad)
+                        exp_avg.mul_(beta1).add_(1 - beta1, grad)
                         exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
                         grad = None
                     else:
@@ -250,9 +257,7 @@ class OnebitAdam(torch.optim.Optimizer):
         if not self.initialize:
             self.adam_freeze_key = False
             self.initialize = True
-            print(
-                f"Finished the initialization step at rank {torch.distributed.get_rank()}"
-            )
+            print(f"Finished the initialization step at rank {dist.get_rank()}")
             return loss
 
         if self.adam_freeze_key is False:
@@ -283,7 +288,11 @@ class OnebitAdam(torch.optim.Optimizer):
                 state_dict['param_groups'][i].pop('exp_avg_mask')
         super().load_state_dict(state_dict)
         if self.state[self.param_groups[0]['params'][0]]['step'] < self.freeze_step:
+<<<<<<< HEAD
             if torch.distributed.get_rank() == 0:
+=======
+            if dist.get_rank() == 0:
+>>>>>>> master
                 print("Checkpoint loaded and OnebitAdam warmup stage starts/continues.")
             if self.adam_freeze_key is True:
                 self.adam_freeze_key = False
@@ -292,7 +301,11 @@ class OnebitAdam(torch.optim.Optimizer):
                 else:
                     self.deepspeed.enable_backward_allreduce = True
         else:
+<<<<<<< HEAD
             if torch.distributed.get_rank() == 0:
+=======
+            if dist.get_rank() == 0:
+>>>>>>> master
                 print(
                     "Checkpoint loaded and OnebitAdam compression stage starts/continues."
                 )

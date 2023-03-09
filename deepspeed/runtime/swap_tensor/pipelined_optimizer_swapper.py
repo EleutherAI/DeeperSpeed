@@ -5,6 +5,7 @@ Licensed under the MIT license.
 Functionality of swapping optimizer tensors to/from (NVMe) storage devices.
 """
 
+<<<<<<< HEAD
 import os
 import torch
 
@@ -17,6 +18,15 @@ from deepspeed.runtime.swap_tensor.utils import swap_in_tensors, swap_out_tensor
     MIN_AIO_BYTES, AIO_ALIGNED_BYTES
 from deepspeed.runtime.swap_tensor.async_swapper import AsyncTensorSwapper
 from deepspeed.runtime.swap_tensor.optimizer_utils import SwapBufferManager, get_sized_buffer
+=======
+from deepspeed.ops.op_builder import AsyncIOBuilder
+from deepspeed import comm as dist
+
+from deepspeed.runtime.swap_tensor.constants import *
+from deepspeed.runtime.swap_tensor.utils import swap_in_tensors, swap_out_tensors, print_object
+from deepspeed.runtime.swap_tensor.async_swapper import AsyncTensorSwapper
+from deepspeed.runtime.swap_tensor.utils import get_sized_buffer
+>>>>>>> master
 from deepspeed.runtime.swap_tensor.optimizer_utils import OptimizerSwapper
 
 
@@ -95,8 +105,13 @@ class PipelinedOptimizerSwapper(OptimizerSwapper):
                                                    numel_alignment=self.numel_alignment,
                                                    timers=self.timers)
 
+<<<<<<< HEAD
         self.async_swap_in = swap_config[OFFLOAD_OPTIMIZER_PIPELINE_READ]
         self.async_swap_out = swap_config[OFFLOAD_OPTIMIZER_PIPELINE_WRITE]
+=======
+        self.async_swap_in = swap_config.pipeline_read
+        self.async_swap_out = swap_config.pipeline_write
+>>>>>>> master
 
         self.swap_ops = {
             SYNC_SWAP_IN: None,
@@ -113,7 +128,11 @@ class PipelinedOptimizerSwapper(OptimizerSwapper):
             'print_exclude_list'
         ]
 
+<<<<<<< HEAD
         if torch.distributed.get_rank() == 0:
+=======
+        if dist.get_rank() == 0:
+>>>>>>> master
             print_object(obj=self,
                          name='PipelinedOptimizerSwapper',
                          exclude_list=self.print_exclude_list)
@@ -254,7 +273,11 @@ class PipelinedOptimizerSwapper(OptimizerSwapper):
             count=required_buffer_count,
             dtype=parameter.dtype)
         assert allocated_buffers is not None, \
+<<<<<<< HEAD
         f"PipelinedOptimizerSwapper ran out of swap buffers, try increasing {OFFLOAD_OPTIMIZER_BUFFER_COUNT}"
+=======
+        f"PipelinedOptimizerSwapper ran out of swap buffers, try increasing 'buffer_count'"
+>>>>>>> master
 
         state_buffers = allocated_buffers[:len(param_info.tensors)]
         param_info.set_swap_buffers(state_buffers)

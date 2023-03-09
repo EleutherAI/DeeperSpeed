@@ -1,8 +1,10 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+# Copyright The Microsoft DeepSpeed Team
 # DeepSpeed note, code taken from commit 3d59216cec89a363649b4fe3d15295ba936ced0f
 # https://github.com/NVIDIA/DeepLearningExamples/blob/master/PyTorch/LanguageModeling/BERT/modeling.py
 
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors and The HugginFace Inc. team.
+# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,8 +20,6 @@
 # limitations under the License.
 """PyTorch BERT model."""
 
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import copy
 import json
 import logging
@@ -28,24 +28,22 @@ import os
 import shutil
 import tarfile
 import tempfile
-import sys
 from io import open
 
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torch.utils import checkpoint
-import torch.distributed as dist
+import deepspeed.comm as dist
 
 from torch.nn import Module
-from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 import torch.nn.init as init
-import time
 
 #from numba import cuda
 
 #from deepspeed_cuda import DeepSpeedSoftmaxConfig, DeepSpeedSoftmax
+from deepspeed.accelerator import get_accelerator
 
 logger = logging.getLogger(__name__)
 
@@ -132,21 +130,40 @@ def load_tf_weights_in_bert(model, tf_checkpoint_path):
     return model
 
 
+"""
 @torch.jit.script
 def f_gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / 1.41421))
-
-
 @torch.jit.script
 def bias_gelu(bias, y):
     x = bias + y
     return x * 0.5 * (1.0 + torch.erf(x / 1.41421))
-
-
 @torch.jit.script
 def bias_tanh(bias, y):
     x = bias + y
     return torch.tanh(x)
+ """
+
+
+def f_gelu(x):
+    x_type = x.dtype
+    x = x.float()
+    x = x * 0.5 * (1.0 + torch.erf(x / 1.41421))
+    return x.to(x_type)
+
+
+def bias_gelu(bias, y):
+    y_type = y.dtype
+    x = bias.float() + y.float()
+    x = x * 0.5 * (1.0 + torch.erf(x / 1.41421))
+    return x.to(y_type)
+
+
+def bias_tanh(bias, y):
+    y_type = y.dtype
+    x = bias.float() + y.float()
+    x = torch.tanh(x)
+    return x.to(y_type)
 
 
 def gelu(x):
@@ -168,8 +185,8 @@ ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
 class GPUTimer:
     def __init__(self):
         super().__init__()
-        self.start = cuda.event()
-        self.stop = cuda.event()
+        self.start = get_accelerator().Event()  # noqa: F821
+        self.stop = get_accelerator().Event()  # noqa: F821
 
     def record(self):
         self.start.record()
@@ -197,9 +214,7 @@ class LinearActivation(Module):
         self.out_features = out_features
         self.fused_gelu = False
         self.fused_tanh = False
-        if isinstance(act,
-                      str) or (sys.version_info[0] == 2 and isinstance(act,
-                                                                       unicode)):
+        if isinstance(act, str):
             if bias and act == 'gelu':
                 self.fused_gelu = True
             elif bias and act == 'tanh':
@@ -276,7 +291,7 @@ class BertConfig(object):
                 layer in the Transformer encoder.
             hidden_act: The non-linear activation function (function or string) in the
                 encoder and pooler. If string, "gelu", "relu" and "swish" are supported.
-            hidden_dropout_prob: The dropout probabilitiy for all fully connected
+            hidden_dropout_prob: The dropout probability for all fully connected
                 layers in the embeddings, encoder, and pooler.
             attention_probs_dropout_prob: The dropout ratio for the attention
                 probabilities.
@@ -288,10 +303,7 @@ class BertConfig(object):
             initializer_range: The sttdev of the truncated_normal_initializer for
                 initializing all weight matrices.
         """
-        if isinstance(vocab_size_or_config_json_file,
-                      str) or (sys.version_info[0] == 2
-                               and isinstance(vocab_size_or_config_json_file,
-                                              unicode)):
+        if isinstance(vocab_size_or_config_json_file, str):
             with open(vocab_size_or_config_json_file, "r", encoding='utf-8') as reader:
                 json_config = json.loads(reader.read())
             for key, value in json_config.items():
@@ -625,8 +637,8 @@ class BertEncoder(nn.Module):
 
     def get_modules(self, big_node, input):
         for mdl in big_node.named_children():
-            graph.append(mdl)
-            get_modules(self, mdl, input)
+            self.graph.append(mdl)
+            self.get_modules(self, mdl, input)
 
     def forward(self,
                 hidden_states,
@@ -738,12 +750,12 @@ class BertLMPredictionHead(nn.Module):
 
     def forward(self, hidden_states):
         hidden_states = self.transform(hidden_states)
-        torch.cuda.nvtx.range_push(
+        get_accelerator().range_push(
             "decoder input.size() = {}, weight.size() = {}".format(
                 hidden_states.size(),
                 self.decoder.weight.size()))
         hidden_states = self.decoder(hidden_states) + self.bias
-        torch.cuda.nvtx.range_pop()
+        get_accelerator().range_pop()
         return hidden_states
 
 
@@ -781,7 +793,7 @@ class BertPreTrainingHeads(nn.Module):
 
 class BertPreTrainedModel(nn.Module):
     """ An abstract class to handle weights initialization and
-        a simple interface for dowloading and loading pretrained models.
+        a simple interface for downloading and loading pretrained models.
     """
     def __init__(self, config, *inputs, **kwargs):
         super(BertPreTrainedModel, self).__init__()
@@ -837,7 +849,7 @@ class BertPreTrainedModel(nn.Module):
                     . `model.chkpt` a TensorFlow checkpoint
             from_tf: should we load the weights from a locally saved TensorFlow checkpoint
             cache_dir: an optional path to a folder in which the pre-trained models will be cached.
-            state_dict: an optional state dictionnary (collections.OrderedDict object) to use instead of Google pre-trained models
+            state_dict: an optional state dictionary (collections.OrderedDict object) to use instead of Google pre-trained models
             *inputs, **kwargs: additional input for the specific Bert class
                 (ex: num_labels for BertForSequenceClassification)
         """
@@ -845,22 +857,22 @@ class BertPreTrainedModel(nn.Module):
             archive_file = PRETRAINED_MODEL_ARCHIVE_MAP[pretrained_model_name_or_path]
         else:
             archive_file = pretrained_model_name_or_path
-        if resolved_archive_file == archive_file:
+        if resolved_archive_file == archive_file:  # noqa: F821
             logger.info("loading archive file {}".format(archive_file))
         else:
             logger.info("loading archive file {} from cache at {}".format(
                 archive_file,
-                resolved_archive_file))
+                resolved_archive_file))  # noqa: F821
         tempdir = None
-        if os.path.isdir(resolved_archive_file) or from_tf:
-            serialization_dir = resolved_archive_file
+        if os.path.isdir(resolved_archive_file) or from_tf:  # noqa: F821
+            serialization_dir = resolved_archive_file  # noqa: F821
         else:
             # Extract archive to temp dir
             tempdir = tempfile.mkdtemp()
             logger.info("extracting archive file {} to temp dir {}".format(
-                resolved_archive_file,
+                resolved_archive_file,  # noqa: F821
                 tempdir))
-            with tarfile.open(resolved_archive_file, 'r:gz') as archive:
+            with tarfile.open(resolved_archive_file, 'r:gz') as archive:  # noqa: F821
                 archive.extractall(tempdir)
             serialization_dir = tempdir
         # Load config
@@ -873,7 +885,7 @@ class BertPreTrainedModel(nn.Module):
             weights_path = os.path.join(serialization_dir, WEIGHTS_NAME)
             state_dict = torch.load(
                 weights_path,
-                map_location='cpu' if not torch.cuda.is_available() else None)
+                map_location='cpu' if not get_accelerator().is_available() else None)
         if tempdir:
             # Clean up temp dir
             shutil.rmtree(tempdir)
@@ -958,7 +970,7 @@ class BertModel(BertPreTrainedModel):
         `output_all_encoded_layers`: boolean which controls the content of the `encoded_layers` output as described below. Default: `True`.
 
     Outputs: Tuple of (encoded_layers, pooled_output)
-        `encoded_layers`: controled by `output_all_encoded_layers` argument:
+        `encoded_layers`: controlled by `output_all_encoded_layers` argument:
             - `output_all_encoded_layers=True`: outputs a list of the full sequences of encoded-hidden-states at the end
                 of each attention block (i.e. 12 full sequences for BERT-base, 24 for BERT-large), each
                 encoded-hidden-state is a torch.FloatTensor of size [batch_size, sequence_length, hidden_size],

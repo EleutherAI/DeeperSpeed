@@ -8,11 +8,19 @@ Functionality of swapping tensors to/from (NVMe) storage devices.
 import os
 import torch
 
+<<<<<<< HEAD
 from deepspeed.utils.logging import logger
 from deepspeed.runtime.zero.offload_constants import *
 from deepspeed.runtime.swap_tensor.constants import *
 from deepspeed.runtime.swap_tensor.utils import swap_in_tensors, swap_out_tensors, \
     MIN_AIO_BYTES, AIO_ALIGNED_BYTES, get_sized_buffers, get_sized_buffer
+=======
+from deepspeed import comm as dist
+from deepspeed.utils.logging import logger
+from deepspeed.runtime.swap_tensor.constants import *
+from deepspeed.runtime.swap_tensor.utils import swap_in_tensors, swap_out_tensors, \
+    MIN_AIO_BYTES, AIO_ALIGNED_BYTES, get_sized_buffers
+>>>>>>> master
 from deepspeed.runtime.swap_tensor.utils import SwapBufferManager, SwapBufferPool
 
 
@@ -133,11 +141,16 @@ class OptimizerSwapper(object):
         self.swap_element_size = torch.tensor([], dtype=dtype).element_size()
         self.swap_folder = os.path.join(base_folder,
                                         'optimizer',
+<<<<<<< HEAD
                                         f'rank{torch.distributed.get_rank()}')
+=======
+                                        f'rank{dist.get_rank()}')
+>>>>>>> master
         os.makedirs(self.swap_folder, exist_ok=True)
 
         self.optimizer = optimizer
 
+<<<<<<< HEAD
         # Swap buffer management
         self.largest_numel = largest_numel
         self.dtype = dtype
@@ -146,11 +159,23 @@ class OptimizerSwapper(object):
             count=swap_config[OFFLOAD_OPTIMIZER_BUFFER_COUNT],
             dtype=dtype)
 
+=======
+>>>>>>> master
         # Read/Write alignment for each thread during Intra-request parallelism
         self.min_aio_bytes = max(MIN_AIO_BYTES, aio_config[AIO_BLOCK_SIZE])
         self.aligned_bytes = AIO_ALIGNED_BYTES * aio_config[AIO_THREAD_COUNT]
         self.numel_alignment = self.aligned_bytes // self.swap_element_size
 
+<<<<<<< HEAD
+=======
+        # Swap buffer management
+        self.largest_numel = self._io_aligned_numel(largest_numel)
+        self.dtype = dtype
+        self.swap_buffer_manager = SwapBufferManager(num_elems=self.largest_numel,
+                                                     count=swap_config.buffer_count,
+                                                     dtype=dtype)
+
+>>>>>>> master
         # Timers
         self.timers = timers
         self.timer_names = set()
@@ -271,7 +296,11 @@ class OptimizerSwapper(object):
                 fp16_partitions_info=fp16_partitions_info[curr_index:],
                 fp16_swap_buffers=fp16_swap_buffers)
 
+<<<<<<< HEAD
             if torch.distributed.get_rank() == 0 and SWAPPER_DEBUG_MODE:
+=======
+            if dist.get_rank() == 0 and SWAPPER_DEBUG_MODE:
+>>>>>>> master
                 for i, tensor in enumerate(fp16_pinned_tensors):
                     true_index = curr_index + i
                     logger.info(
@@ -376,7 +405,11 @@ class OptimizerSwapper(object):
                                         dest_paths=swap_paths,
                                         pinned_buffers=pinned_buffers)
 
+<<<<<<< HEAD
         if torch.distributed.get_rank() == 0 and SWAPPER_DEBUG_MODE:
+=======
+        if dist.get_rank() == 0 and SWAPPER_DEBUG_MODE:
+>>>>>>> master
             for i, tensor in enumerate(src_tensors):
                 logger.info(
                     f'copy_in_fp16_param: fp32_id = {id(parameters[i])} index = {i}, swap_num_elem = {src_tensors[i].numel()}'
@@ -461,12 +494,20 @@ class OptimizerSwapper(object):
         self._stop_timer(UNSWAPPED_READ_GRADIENTS)
         self._log_timers([UNSWAPPED_READ_GRADIENTS])
 
+<<<<<<< HEAD
         # It shoud be safe to discard unswapped gradient partitions
+=======
+        # It should be safe to discard unswapped gradient partitions
+>>>>>>> master
         swap_info.release_unswapped_gradients()
 
         if SWAPPER_DEBUG_MODE:
             logger.info(
+<<<<<<< HEAD
                 f'optimizer_retreive_unswapped_radients: param={swap_info.param_id} tensor_count={tensor_count} elem_count={num_elem_count}'
+=======
+                f'optimizer_retrieve_unswapped_gradients: param={swap_info.param_id} tensor_count={tensor_count} elem_count={num_elem_count}'
+>>>>>>> master
             )
 
     def _get_state_tensors(self, parameter):

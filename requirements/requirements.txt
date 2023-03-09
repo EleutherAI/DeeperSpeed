@@ -1,6 +1,15 @@
+<<<<<<< HEAD
 torch>=1.2
 tqdm
 tensorboardX==1.8
+=======
+hjson
+>>>>>>> master
 ninja
 numpy
+packaging>=20.0
 psutil
+py-cpuinfo
+pydantic
+torch
+tqdm

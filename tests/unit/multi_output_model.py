@@ -1,6 +1,5 @@
-import os
-import json
-import argparse
+'''Copyright The Microsoft DeepSpeed Team'''
+
 import torch
 
 

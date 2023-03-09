@@ -1,5 +1,9 @@
 ---
 title: "1-bit LAMB: Communication Efficient Large-Scale Large-Batch Training with LAMB's Convergence Speed"
+<<<<<<< HEAD
+=======
+tags: training IO
+>>>>>>> master
 ---
 
 **Watch out!**

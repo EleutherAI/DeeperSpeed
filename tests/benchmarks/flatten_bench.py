@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+'''Copyright The Microsoft DeepSpeed Team'''
+
+>>>>>>> master
 #!/usr/bin/env python
 # run the benchmark under timeit (-t), cProfile (-c), line_profiler (-l)
 #
@@ -11,7 +16,12 @@ import argparse
 import gc
 
 import torch
+<<<<<<< HEAD
 from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
+=======
+from torch._utils import _flatten_dense_tensors
+from deepspeed.accelerator import get_accelerator
+>>>>>>> master
 from deepspeed.ops.op_builder import UtilsBuilder
 
 from apex_C import flatten as flatten_apex
@@ -24,11 +34,19 @@ torch.manual_seed(0)
 # emulate a small typical model weights
 x = [
     torch.rand((512,
+<<<<<<< HEAD
                 512)).cuda(),
     torch.rand((512,
                 1024)).cuda(),
     torch.rand((512,
                 30000)).cuda()
+=======
+                512)).to(get_accelerator().device_name()),
+    torch.rand((512,
+                1024)).to(get_accelerator().device_name()),
+    torch.rand((512,
+                30000)).to(get_accelerator().device_name())
+>>>>>>> master
 ]
 t = x * 30
 
@@ -69,6 +87,7 @@ def cprofileme():
     print("py")
     cProfile.run("py()", sort=-1)
     gc.collect()
+<<<<<<< HEAD
     torch.cuda.empty_cache()
     print("cpp")
     cProfile.run("cpp()", sort=-1)
@@ -78,6 +97,17 @@ def cprofileme():
     cProfile.run("apex()", sort=-1)
     gc.collect()
     torch.cuda.empty_cache()
+=======
+    get_accelerator().empty_cache()
+    print("cpp")
+    cProfile.run("cpp()", sort=-1)
+    gc.collect()
+    get_accelerator().empty_cache()
+    print("apex")
+    cProfile.run("apex()", sort=-1)
+    gc.collect()
+    get_accelerator().empty_cache()
+>>>>>>> master
 
 
 #### timeit ####
@@ -89,6 +119,7 @@ def timeme():
     print("--------------- timeit -----------------")
     print(f'py  ={timeit.Timer("py()", globals=globals()).timeit(number=1)}')
     gc.collect()
+<<<<<<< HEAD
     torch.cuda.empty_cache()
     print(f'cpp ={timeit.Timer("cpp()", globals=globals()).timeit(number=1)}')
     gc.collect()
@@ -96,6 +127,15 @@ def timeme():
     print(f'apex={timeit.Timer("apex()", globals=globals()).timeit(number=1)}')
     gc.collect()
     torch.cuda.empty_cache()
+=======
+    get_accelerator().empty_cache()
+    print(f'cpp ={timeit.Timer("cpp()", globals=globals()).timeit(number=1)}')
+    gc.collect()
+    get_accelerator().empty_cache()
+    print(f'apex={timeit.Timer("apex()", globals=globals()).timeit(number=1)}')
+    gc.collect()
+    get_accelerator().empty_cache()
+>>>>>>> master
 
 
 #### line_profiler ####
@@ -105,6 +145,7 @@ def timeme():
 
 
 def line_profileme():
+<<<<<<< HEAD
     print("--------------- line_profier -----------------")
     print("py")
     profile(py)()
@@ -118,6 +159,21 @@ def line_profileme():
     profile(apex)()
     gc.collect()
     torch.cuda.empty_cache()
+=======
+    print("--------------- line_profiler -----------------")
+    print("py")
+    profile(py)()  # noqa: F821
+    gc.collect()
+    get_accelerator().empty_cache()
+    print("cpp")
+    profile(cpp)()  # noqa: F821
+    gc.collect()
+    get_accelerator().empty_cache()
+    print("apex")
+    profile(apex)()  # noqa: F821
+    gc.collect()
+    get_accelerator().empty_cache()
+>>>>>>> master
 
 
 if __name__ == "__main__":

@@ -5,12 +5,20 @@ Licensed under the MIT license.
 Functionality of swapping tensors to/from (NVMe) storage devices.
 """
 
+<<<<<<< HEAD
 import os
 import torch
 from deepspeed.utils.logging import logger
 
 from deepspeed.runtime.swap_tensor.constants import AIO_BLOCK_SIZE, AIO_QUEUE_DEPTH, \
     AIO_THREAD_COUNT, AIO_SINGLE_SUBMIT, AIO_OVERLAP_EVENTS
+=======
+import torch
+from deepspeed.utils.logging import logger
+from deepspeed.accelerator import get_accelerator
+
+from deepspeed import comm as dist
+>>>>>>> master
 
 MIN_AIO_BYTES = 1024**2
 AIO_ALIGNED_BYTES = 1024
@@ -181,16 +189,27 @@ class SwapBufferManager(object):
         self.count = count
         self.dtype = dtype
         self.all_buffers = [
+<<<<<<< HEAD
             torch.zeros(num_elems,
                         device='cpu',
                         dtype=dtype).pin_memory() for _ in range(count)
+=======
+            get_accelerator().pin_memory(
+                torch.zeros(num_elems,
+                            device='cpu',
+                            dtype=dtype)) for _ in range(count)
+>>>>>>> master
         ]
         self.free_buffer_index = [i for i in range(count)]
         self.used_buffer_index = {}
         self.gigabytes = (self.all_buffers[0].element_size() * num_elems * count) / (1024
                                                                                      **3)
 
+<<<<<<< HEAD
         if torch.distributed.get_rank() == 0:
+=======
+        if dist.get_rank() == 0:
+>>>>>>> master
             exclude_list = ['all_buffers']
             print_object(obj=self, name='SwapBufferManager', exclude_list=exclude_list)
 
@@ -229,7 +248,11 @@ class SwapBufferManager(object):
 
 def get_sized_buffer(buffer, num_elems):
     assert num_elems <= buffer.numel(), \
+<<<<<<< HEAD
         f'num_elems {num_elems}> buffer {buffer.numel()}'
+=======
+        f'num_elems {num_elems} > buffer {buffer.numel()}'
+>>>>>>> master
     return buffer.narrow(0, 0, num_elems) if num_elems < buffer.numel() else buffer
 
 

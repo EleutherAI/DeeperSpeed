@@ -1,14 +1,25 @@
+<<<<<<< HEAD
 from mpi4py import MPI
 import time
 import torch
 import torch.distributed as dist
 import numpy as np
+=======
+'''Copyright The Microsoft DeepSpeed Team'''
+
+from mpi4py import MPI
+import torch
+>>>>>>> master
 import deepspeed
 
 from deepspeed.runtime.comm.mpi import MpiBackend
 
 # Configure wall clock timer
 from deepspeed.utils.timer import SynchronizedWallClockTimer
+<<<<<<< HEAD
+=======
+from deepspeed.accelerator import get_accelerator
+>>>>>>> master
 
 from statistics import mean
 
@@ -18,11 +29,20 @@ comm = MPI.COMM_WORLD
 size = comm.Get_size()
 rank = comm.Get_rank()
 
+<<<<<<< HEAD
 deepspeed.init_distributed(dist_backend='nccl')
 # Change cuda_aware to True to test out CUDA-Aware MPI communication
 backend = MpiBackend(cuda_aware=False)
 
 device = torch.device('cuda', rank % torch.cuda.device_count())
+=======
+deepspeed.init_distributed(dist_backend=get_accelerator().communication_backend_name())
+# Change cuda_aware to True to test out CUDA-Aware MPI communication
+backend = MpiBackend(cuda_aware=False)
+
+local_rank = rank % get_accelerator().device_count()
+device = torch.device(get_accelerator().device_name(), local_rank)
+>>>>>>> master
 
 tensor_size = 300 * 2**20
 server_size = int(tensor_size / size)
@@ -42,8 +62,11 @@ server_error = torch.zeros(right_server_size, device=device)
 warmup = 10
 iters = 10
 
+<<<<<<< HEAD
 local_rank = rank % torch.cuda.device_count()
 
+=======
+>>>>>>> master
 # Warmup
 for i in range(warmup):
     backend.compressed_allreduce(a, worker_error, server_error, local_rank)

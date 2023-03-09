@@ -16,7 +16,7 @@ Elasticity should be enabled as:
   "max_train_batch_size": 2000,
   "micro_batch_sizes": [2,4,6],
   "min_gpus": 1,
-  "max_gpus" : 10000
+  "max_gpus" : 10000,
   "min_time": 20,
   "prefer_larger_batch": true,
   "ignore_non_elastic_batch_info": false,
@@ -27,7 +27,7 @@ Elasticity should be enabled as:
 ELASTICITY = 'elasticity'
 
 # Current elasticity version
-LATEST_ELASTICITY_VERSION = 0.1
+LATEST_ELASTICITY_VERSION = 0.2
 
 ENABLED = 'enabled'
 ENABLED_DEFAULT = False
@@ -45,6 +45,12 @@ MIN_GPUS = 'min_gpus'
 MIN_GPUS_DEFAULT = 1
 MAX_GPUS = 'max_gpus'
 MAX_GPUS_DEFAULT = 10000
+
+NUM_GPUS_PER_NODE = 'num_gpus_per_node'
+NUM_GPUS_PER_NODE_DEFAULT = 1
+
+MODEL_PARLLEL_SIZE = "model_parallel_size"
+MODEL_PARLLEL_SIZE_DEFAULT = 1
 
 # Minimum running time (minutes) before the scheduler will scale us, 0 implies it's unknown
 MIN_TIME = "min_time"

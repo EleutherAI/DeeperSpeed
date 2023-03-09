@@ -35,7 +35,11 @@ Gradient Accumulation
 
 Model Saving
 ------------
+<<<<<<< HEAD
 .. autofunction:: deepspeed.DeepSpeedEngine.save_fp16_model
+=======
+.. autofunction:: deepspeed.DeepSpeedEngine.save_16bit_model
+>>>>>>> master
 
 
 Additionally when a DeepSpeed checkpoint is created, a script ``zero_to_fp32.py`` is added there which can be used to reconstruct fp32 master weights into a single pytorch ``state_dict`` file.

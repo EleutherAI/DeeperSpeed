@@ -1,9 +1,12 @@
+'''Copyright The Microsoft DeepSpeed Team'''
+
 import os
 import json
 import argparse
 import torch
 import deepspeed
 from torch.utils.data.distributed import DistributedSampler
+import deepspeed.comm as dist
 
 
 class SimpleModel(torch.nn.Module):
@@ -15,9 +18,9 @@ class SimpleModel(torch.nn.Module):
         self.cross_entropy_loss = torch.nn.CrossEntropyLoss()
 
     def forward(self, x, y):
-        hidden_dim = x
-        hidden_dim = self.linear(hidden_dim)
-        return self.cross_entropy_loss(hidden_dim, y)
+        hidden = x
+        hidden = self.linear(hidden)
+        return self.cross_entropy_loss(hidden, y)
 
 
 def create_config_from_dict(tmpdir, config_dict):
@@ -56,7 +59,7 @@ def get_args(tmpdir, config_dict):
 
 
 def print0(msg):
-    if torch.distributed.get_rank() == 0:
+    if dist.get_rank() == 0:
         print(msg, flush=True)
 
 
@@ -95,7 +98,7 @@ model, _, _,_ = deepspeed.initialize(args=args,
 
 
 def print_params(tag, model):
-    if torch.distributed.get_rank() == 0:
+    if dist.get_rank() == 0:
         for n, p in model.named_parameters():
             print0("{} {}:{}".format(tag, n, p))
 
@@ -107,7 +110,7 @@ data_loader = get_data_loader(model=model,
 #print_params('pre-train', model)
 for n, batch in enumerate(data_loader):
     loss = model(batch[0], batch[1])
-    if torch.distributed.get_rank() == 0:
+    if dist.get_rank() == 0:
         print("LOSS:", loss.item())
     model.backward(loss)
     model.step()

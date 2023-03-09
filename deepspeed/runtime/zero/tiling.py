@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+=======
+'''Copyright The Microsoft DeepSpeed Team'''
+
+>>>>>>> master
 import torch
 import deepspeed
 from deepspeed.runtime.utils import partition_uniform as partition
@@ -14,6 +19,10 @@ def split_tensor_along_last_dim(tensor, partitions, contiguous_split_chunks=Fals
     """
     # Get the size and dimension.
     last_dim = tensor.dim() - 1
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
     # Split.
     tensor_list = torch.split(tensor, partitions, dim=last_dim)
     # Note: torch.split does not create contiguous tensors by default.
@@ -123,8 +132,14 @@ class TiledLinear(torch.nn.Module):
 
     def forward(self, input_):
         if self.in_splits > 1 and not self.input_is_already_split:
+<<<<<<< HEAD
             split_sizes = [
                 self.in_parts[p + 1] - self.in_parts[p] for p in range(self.in_splits)
+=======
+            input_parts = partition(input_.shape[-1], self.in_splits)
+            split_sizes = [
+                input_parts[p + 1] - input_parts[p] for p in range(self.in_splits)
+>>>>>>> master
             ]
             inputs = self._split_global_input(input_, split_sizes)
         elif self.in_splits > 1:

@@ -1,3 +1,5 @@
+'''Copyright The Microsoft DeepSpeed Team'''
+
 from ..utils import call_to_str
 
 from abc import ABC, abstractmethod
@@ -392,7 +394,7 @@ class ForwardPass(BufferOpInstruction):
 
     .. code-block:: python
 
-        buffers['ouputs'][buffer_id] = forward(buffers['inputs'][buffer_id])
+        buffers['outputs'][buffer_id] = forward(buffers['inputs'][buffer_id])
     """
     pass
 
@@ -404,7 +406,7 @@ class BackwardPass(BufferOpInstruction):
 
     .. code-block:: python
 
-        outputs = buffers['ouputs'][buffer_id]
+        outputs = buffers['outputs'][buffer_id]
         gradients = buffers['gradients'][buffer_id]
         torch.autograd.backward(tensors=outputs,
                                 grad_tensors=gradients)

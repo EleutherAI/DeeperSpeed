@@ -1,6 +1,13 @@
+<<<<<<< HEAD
 import time
 import torch
 import torch.distributed as dist
+=======
+'''Copyright The Microsoft DeepSpeed Team'''
+
+import torch
+import deepspeed.comm as dist
+>>>>>>> master
 import numpy as np
 import argparse
 import deepspeed
@@ -8,6 +15,10 @@ import os
 
 from deepspeed.runtime.comm.nccl import NcclBackend
 from deepspeed.utils.timer import SynchronizedWallClockTimer
+<<<<<<< HEAD
+=======
+from deepspeed.accelerator import get_accelerator
+>>>>>>> master
 from statistics import mean
 
 timers = SynchronizedWallClockTimer()
@@ -16,11 +27,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--local_rank', type=int, default=-1)
 args = parser.parse_args()
 
+<<<<<<< HEAD
 deepspeed.init_distributed(dist_backend='nccl')
 args.local_rank = int(os.environ['LOCAL_RANK'])
 
 torch.cuda.set_device(args.local_rank)
 device = torch.device("cuda", args.local_rank)
+=======
+deepspeed.init_distributed(dist_backend=get_accelerator().communication_backend_name())
+args.local_rank = int(os.environ['LOCAL_RANK'])
+
+get_accelerator().set_device(args.local_rank)
+device = torch.device(get_accelerator().device_name(), args.local_rank)
+>>>>>>> master
 
 size = dist.get_world_size()
 rank = dist.get_rank()
@@ -62,7 +81,11 @@ print("Shape of the compressed buffer:", a_compressed.shape) if rank == 0 else N
 for i in range(iters):
     timers('compressed_allreduce').start()
     backend.compressed_allreduce(a, worker_error, server_error, local_rank)
+<<<<<<< HEAD
     #torch.distributed.all_reduce(a_compressed)
+=======
+    #deepspeed.comm.all_reduce(a_compressed)
+>>>>>>> master
     timers('compressed_allreduce').stop()
     time_list.append(timers('compressed_allreduce').elapsed())
 

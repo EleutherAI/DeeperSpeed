@@ -1,11 +1,11 @@
+'''Copyright The Microsoft DeepSpeed Team'''
+
 import subprocess as sp
-import datetime
 import os
 from math import isclose
 import sys
 import pytest
 import json
-import argparse
 
 sys.path.append("../../../DeepSpeedExamples/BingBertSquad")
 import evaluate as eval

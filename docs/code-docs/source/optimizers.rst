@@ -19,6 +19,13 @@ OneBitAdam (GPU)
 ----------------------------
 .. autoclass:: deepspeed.runtime.fp16.onebit.adam.OnebitAdam
 
+<<<<<<< HEAD
+=======
+ZeroOneAdam (GPU)
+----------------------------
+.. autoclass:: deepspeed.runtime.fp16.onebit.zoadam.ZeroOneAdam
+
+>>>>>>> master
 OnebitLamb (GPU)
 ----------------------------
 .. autoclass:: deepspeed.runtime.fp16.onebit.lamb.OnebitLamb

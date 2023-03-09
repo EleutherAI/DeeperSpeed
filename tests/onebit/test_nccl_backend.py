@@ -1,9 +1,15 @@
+<<<<<<< HEAD
 import time
+=======
+'''Copyright The Microsoft DeepSpeed Team'''
+
+>>>>>>> master
 import torch
-import torch.distributed as dist
+import deepspeed.comm as dist
 import numpy as np
 import argparse
 import deepspeed
+<<<<<<< HEAD
 <<<<<<< HEAD:tests/onebit/test_com_reduce_host.py
 from deepspeed.runtime.fp16.onebit.onebitadam import OnebitAdam
 =======
@@ -11,16 +17,30 @@ import os
 >>>>>>> 669028f0fd5067c9247120cb21fd6e9bea4820a9:tests/onebit/test_nccl_backend.py
 
 from deepspeed.runtime.comm.nccl import NcclBackend
+=======
+import os
+
+from deepspeed.runtime.comm.nccl import NcclBackend
+from deepspeed.accelerator import get_accelerator
+>>>>>>> master
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--local_rank', type=int, default=-1)
 args = parser.parse_args()
 
+<<<<<<< HEAD
 deepspeed.init_distributed(dist_backend='nccl')
 args.local_rank = int(os.environ['LOCAL_RANK'])
 
 torch.cuda.set_device(args.local_rank)
 device = torch.device("cuda", args.local_rank)
+=======
+deepspeed.init_distributed(dist_backend=get_accelerator().communication_backend_name())
+args.local_rank = int(os.environ['LOCAL_RANK'])
+
+get_accelerator().set_device(args.local_rank)
+device = torch.device(get_accelerator().device_name(), args.local_rank)
+>>>>>>> master
 
 size = dist.get_world_size()
 rank = dist.get_rank()
@@ -29,7 +49,11 @@ backend = NcclBackend()
 local_rank = args.local_rank
 
 
+<<<<<<< HEAD
 # A simulated compression function using torch.distributed
+=======
+# A simulated compression function using deepspeed.comm
+>>>>>>> master
 def torch_sim(a):
     a_sign = a.sign().add_(1).bool().float().add_(-0.5).mul_(2.0)
     scale = a.norm() / np.sqrt(a.numel())
@@ -46,8 +70,8 @@ def torch_sim(a):
         [server_scale[i] * a_sign_list[i] for i in range(dist.get_world_size())])
     rank = dist.get_rank()
     server_error = a_list[rank] - server_scale[rank] * a_sign_list[rank]
-    torch.cuda.synchronize()
-    torch.distributed.barrier()
+    get_accelerator().synchronize()
+    dist.barrier()
     return a_server_compressed, worker_error, server_error
 
 
@@ -67,7 +91,11 @@ worker_error = torch.zeros(right_tensor_size, device=device)
 server_error = torch.zeros(right_server_size, device=device)
 
 a_torch, worker_error_torch, server_error_torch = torch_sim(a)
+<<<<<<< HEAD
 torch.cuda.empty_cache()
+=======
+get_accelerator().empty_cache()
+>>>>>>> master
 
 a_after = backend.compressed_allreduce(a, worker_error, server_error, local_rank)
 
@@ -82,6 +110,7 @@ test_correctness = True
 
 # If the number in the compensated_server_m is too small (e.g 1e-8), then calling sign() might be problematic
 # The test would skip those numbers that are too small in compensated_server_m
+<<<<<<< HEAD
 <<<<<<< HEAD:tests/onebit/test_com_reduce_host.py
 if torch.sum(diff_server_mask) == 0:
     print('Successfully passed the test for 1bit Adam at Rank {}'.format(rank))
@@ -94,6 +123,11 @@ if test_correctness:
     if torch.sum(diff_server_mask) == 0:
         print('Successfully passed the test for NCCL Backend at Rank {}'.format(rank))
 >>>>>>> 669028f0fd5067c9247120cb21fd6e9bea4820a9:tests/onebit/test_nccl_backend.py
+=======
+if test_correctness:
+    if torch.sum(diff_server_mask) == 0:
+        print('Successfully passed the test for NCCL Backend at Rank {}'.format(rank))
+>>>>>>> master
     else:
         check_mag_mask = mpi_server[diff_server_mask] > magnitude_threshold
         if torch.sum(check_mag_mask) == 0:

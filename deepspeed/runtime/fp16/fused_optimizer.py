@@ -6,9 +6,9 @@ This file is adapted from FP16_Optimizer in NVIDIA/apex
 """
 
 import torch
-import math
 from torch._utils import _flatten_dense_tensors, _unflatten_dense_tensors
 
+<<<<<<< HEAD
 from deepspeed.runtime.utils import get_grad_norm, CheckOverflow, get_weight_norm
 from deepspeed.runtime.fp16.loss_scaler import (
     INITIAL_LOSS_SCALE,
@@ -16,6 +16,15 @@ from deepspeed.runtime.fp16.loss_scaler import (
     MIN_LOSS_SCALE,
 )
 from deepspeed.utils import logger, log_dist
+=======
+from deepspeed.runtime import DeepSpeedOptimizer
+from deepspeed.runtime.utils import get_global_norm, get_grad_norm, CheckOverflow, get_weight_norm
+from deepspeed.runtime.fp16.loss_scaler import INITIAL_LOSS_SCALE, SCALE_WINDOW, MIN_LOSS_SCALE
+from deepspeed.utils import groups, logger, log_dist
+from deepspeed import comm as dist
+from deepspeed.checkpoint.constants import OPTIMIZER_STATE_DICT, CLIP_GRAD
+from deepspeed.accelerator import get_accelerator
+>>>>>>> master
 
 from ...ops.adam import FusedAdam
 
@@ -48,12 +57,13 @@ def is_fp16_fused_supported_optimizer(optimizer):
     return False
 
 
-class FP16_Optimizer(object):
+class FP16_Optimizer(DeepSpeedOptimizer):
     """
    FP16 Optimizer for training fp16 models. Handles loss scaling.
 
    For usage example please see, TODO:  DeepSpeed V2 Tutorial
     """
+<<<<<<< HEAD
 
     def __init__(
         self,
@@ -69,18 +79,37 @@ class FP16_Optimizer(object):
         fused_adam_legacy=False,
         timers=None,
     ):
+=======
+    def __init__(self,
+                 init_optimizer,
+                 deepspeed=None,
+                 static_loss_scale=1.0,
+                 dynamic_loss_scale=False,
+                 initial_dynamic_scale=2**32,
+                 dynamic_loss_args=None,
+                 verbose=True,
+                 mpu=None,
+                 clip_grad=0.0,
+                 fused_adam_legacy=False,
+                 has_moe_layers=False,
+                 timers=None):
+>>>>>>> master
 
         self.fused_adam_legacy = fused_adam_legacy
         self.timers = timers
-
-        if not torch.cuda.is_available:
-            raise SystemError("Cannot use fp16 without CUDA.")
+        self.deepspeed = deepspeed
+        self.has_moe_layers = has_moe_layers
+        self.using_pipeline = self.deepspeed.pipeline_parallelism
+        if not get_accelerator().is_available():
+            raise SystemError("Cannot use fp16 without accelerator.")
         self.optimizer = init_optimizer
 
         # param flattened by groups
         self.fp16_groups = []
         self.fp16_groups_flat = []
         self.fp32_groups_flat = []
+
+        self._global_grad_norm = 0.
 
         # loop to deal with groups
         for i, param_group in enumerate(self.optimizer.param_groups):
@@ -129,8 +158,12 @@ class FP16_Optimizer(object):
             self.cur_scale = static_loss_scale
         self.verbose = verbose
 
+        self.custom_loss_scaler = False
+        self.external_loss_scale = None
+
         self.clip_grad = clip_grad
         self.norm_type = 2
+        self.step_count = 0
 
         TORCH_MAJOR = int(torch.__version__.split(".")[0])
         TORCH_MINOR = int(torch.__version__.split(".")[1])
@@ -143,9 +176,15 @@ class FP16_Optimizer(object):
         self.mpu = mpu
 
         self.overflow = False
+<<<<<<< HEAD
         self.overflow_checker = CheckOverflow(
             self.fp16_groups, mpu=self.mpu, deepspeed=deepspeed
         )
+=======
+        self.overflow_checker = CheckOverflow(self.fp16_groups,
+                                              mpu=self.mpu,
+                                              deepspeed=deepspeed)
+>>>>>>> master
         self.initialize_optimizer_states()
 
     def initialize_optimizer_states(self):
@@ -161,14 +200,14 @@ class FP16_Optimizer(object):
 
         return
 
-    def zero_grad(self, set_grads_to_None=True):
+    def zero_grad(self, set_to_none=False):
         """
         Zero FP16 parameter grads.
         """
         # For speed, set model fp16 grad to None by default
         for group in self.fp16_groups:
             for p in group:
-                if set_grads_to_None:
+                if set_to_none:
                     p.grad = None
                 else:
                     if p.grad is not None:
@@ -179,6 +218,7 @@ class FP16_Optimizer(object):
         """
         Not supporting closure.
         """
+
         # First compute norm for all group so we know if there is overflow
         grads_groups_flat = []
         norm_groups = []
@@ -206,9 +246,22 @@ class FP16_Optimizer(object):
                     "scale: {}, reducing to {}".format(prev_scale, self.cur_scale)
                 )
             return self.overflow
+<<<<<<< HEAD
         combined_scale = self.unscale_and_clip_grads(
             grads_groups_flat, norm_groups, apply_scale=False
         )
+=======
+
+        scaled_grad_norm = get_global_norm(norm_list=norm_groups)
+
+        combined_scale = self.unscale_and_clip_grads(grads_groups_flat,
+                                                     scaled_grad_norm,
+                                                     apply_scale=False)
+
+        # Stash unscaled gradient norm
+        self._global_grad_norm = scaled_grad_norm / self.cur_scale
+
+>>>>>>> master
         # norm is in fact norm*cur_scale
         self.optimizer.step(
             grads=[[g] for g in grads_groups_flat],
@@ -238,6 +291,23 @@ class FP16_Optimizer(object):
     def log_timers(self, name_list):
         if self.timers is not None:
             self.timers.log(name_list)
+
+    def set_lr(self, lr):
+        """Set the learning rate."""
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = lr
+
+    def get_lr(self):
+        """Return the current learning rate."""
+        return self.optimizer.param_groups[0]["lr"]
+
+    def override_loss_scale(self, loss_scale):
+        if loss_scale != self.external_loss_scale:
+            logger.info(
+                f'[deepspeed] setting loss scale from {self.external_loss_scale} -> {loss_scale}'
+            )
+        self.custom_loss_scaler = True
+        self.external_loss_scale = loss_scale
 
     def step(self, closure=None):
         """
@@ -301,11 +371,21 @@ class FP16_Optimizer(object):
             self.fp32_groups_flat[i].grad = grads_groups_flat[i]
 
         self.start_timers([COMPUTE_NORM])
+
         all_groups_norm = get_grad_norm(self.fp32_groups_flat, mpu=self.mpu)
+
         self.stop_timers([COMPUTE_NORM])
 
+        if self.has_moe_layers:
+            all_groups_norm = self._get_norm_with_moe_layers(all_groups_norm)
+
+        scaled_global_grad_norm = get_global_norm(norm_list=[all_groups_norm])
+
+        # Stash unscaled gradient norm
+        self._global_grad_norm = scaled_global_grad_norm / self.cur_scale
+
         self.start_timers([UNSCALE_AND_CLIP])
-        self.unscale_and_clip_grads(grads_groups_flat, [all_groups_norm])
+        self.unscale_and_clip_grads(grads_groups_flat, scaled_global_grad_norm)
         self.stop_timers([UNSCALE_AND_CLIP])
 
         self.start_timers([BASIC_STEP])
@@ -317,24 +397,47 @@ class FP16_Optimizer(object):
             group.grad = None
 
         self.start_timers([UPDATE_FP16])
+
         for i in range(len(self.fp16_groups)):
             updated_params = _unflatten_dense_tensors(
                 self.fp32_groups_flat[i], self.fp16_groups[i]
             )
             for p, q in zip(self.fp16_groups[i], updated_params):
                 p.data.copy_(q.data)
+
         self.stop_timers([UPDATE_FP16])
 
         self.log_timers(STEP_TIMERS)
 
+        self.step_count += 1
+
         return self.overflow
 
+<<<<<<< HEAD
     def unscale_and_clip_grads(self, grad_groups_flat, norm_groups, apply_scale=True):
         total_norm = 0.0
         for norm in norm_groups:
             total_norm += norm ** 2.0
         total_norm = math.sqrt(total_norm)
+=======
+    def _get_norm_with_moe_layers(self, all_groups_norm):
+        #all_groups_norm_old = all_groups_norm
+        # Need to allreduce (avg) the norms across different ranks because moe params will not be synced during allreduce
+        if self.using_pipeline:
+            pg = self.deepspeed.mpu.get_data_parallel_group()
+        else:
+            pg = groups._get_data_parallel_group()
+        scaled_norm = all_groups_norm * 1.0 / float(dist.get_world_size(group=pg))
+        scaled_norm_tensor = torch.tensor(scaled_norm,
+                                          device=self.fp32_groups_flat[0].device,
+                                          dtype=torch.float)
+        dist.all_reduce(scaled_norm_tensor, group=pg)
+        all_groups_norm = scaled_norm_tensor.item()
+        #print(f"old = {all_groups_norm_old} and new = {all_groups_norm} at rank: {deepspeed.comm.get_rank()}")
+        return all_groups_norm
+>>>>>>> master
 
+    def unscale_and_clip_grads(self, grad_groups_flat, total_norm, apply_scale=True):
         # compute combined scale factor for this group
         combined_scale = self.cur_scale
         if self.clip_grad > 0.0:
@@ -349,7 +452,7 @@ class FP16_Optimizer(object):
 
         return combined_scale
 
-    def backward(self, loss):
+    def backward(self, loss, create_graph=False, retain_graph=False):
         """
         :attr:`backward` performs the following steps:
 
@@ -357,8 +460,12 @@ class FP16_Optimizer(object):
         2. scaled_loss = fp32_loss*loss_scale
         3. scaled_loss.backward(), which accumulates scaled gradients into the ``.grad`` attributes of the model's fp16 leaves
         """
-        scaled_loss = (loss.float()) * self.cur_scale
-        scaled_loss.backward()
+        if self.custom_loss_scaler:
+            scaled_loss = self.external_loss_scale * loss
+            scaled_loss.backward()
+        else:
+            scaled_loss = (loss.float()) * self.cur_scale
+            scaled_loss.backward(create_graph=create_graph, retain_graph=retain_graph)
 
     def _update_scale(self, skip):
         if self.dynamic_loss_scale:
@@ -423,6 +530,7 @@ class FP16_Optimizer(object):
             torch.save(checkpoint, "saved.pth")
         """
         state_dict = {}
+<<<<<<< HEAD
         state_dict["dynamic_loss_scale"] = self.dynamic_loss_scale
         state_dict["cur_scale"] = self.cur_scale
         state_dict["cur_iter"] = self.cur_iter
@@ -433,6 +541,18 @@ class FP16_Optimizer(object):
         state_dict["optimizer_state_dict"] = self.optimizer.state_dict()
         state_dict["fp32_groups_flat"] = self.fp32_groups_flat
         state_dict["clip_grad"] = self.clip_grad
+=======
+        state_dict['dynamic_loss_scale'] = self.dynamic_loss_scale
+        state_dict['cur_scale'] = self.cur_scale
+        state_dict['cur_iter'] = self.cur_iter
+        if state_dict['dynamic_loss_scale']:
+            state_dict['last_overflow_iter'] = self.last_overflow_iter
+            state_dict['scale_factor'] = self.scale_factor
+            state_dict['scale_window'] = self.scale_window
+        state_dict[OPTIMIZER_STATE_DICT] = self.optimizer.state_dict()
+        state_dict['fp32_groups_flat'] = self.fp32_groups_flat
+        state_dict[CLIP_GRAD] = self.clip_grad
+>>>>>>> master
         return state_dict
 
     # Refresh fp32 master params from fp16 copies
@@ -448,7 +568,7 @@ class FP16_Optimizer(object):
         will call ``model.load_state_dict()`` before
         ``fp16_optimizer_instance.load_state_dict()`` is called.
         Example::
-            model = torch.nn.Linear(D_in, D_out).cuda().half()
+            model = torch.nn.Linear(D_in, D_out).to(get_accelerator().device_name()).half()
             optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
             optimizer = FP16_Optimizer(optimizer, static_loss_scale = 128.0)
             ...
@@ -465,8 +585,13 @@ class FP16_Optimizer(object):
             self.scale_factor = state_dict["scale_factor"]
             self.scale_window = state_dict["scale_window"]
         if load_optimizer_states:
+<<<<<<< HEAD
             self.optimizer.load_state_dict(state_dict["optimizer_state_dict"])
         self.clip_grad = state_dict["clip_grad"]
+=======
+            self.optimizer.load_state_dict(state_dict[OPTIMIZER_STATE_DICT])
+        self.clip_grad = state_dict[CLIP_GRAD]
+>>>>>>> master
         # At this point, the optimizer's references to the model's fp32 parameters are up to date.
         # The optimizer's hyperparameters and internal buffers are also up to date.
         # However, the fp32 master copies of the model's fp16 params stored by the optimizer are still
@@ -495,3 +620,15 @@ class FP16_Optimizer(object):
 
     def __repr__(self):
         return repr(self.optimizer)
+
+    # Promote loss scale so it can be retrieved or set via "fp16_optimizer_instance.loss_scale"
+    def _get_loss_scale(self):
+        if self.custom_loss_scaler:
+            return self.external_loss_scale
+        else:
+            return self.cur_scale
+
+    def _set_loss_scale(self, value):
+        self.loss_scaler.cur_scale = value
+
+    loss_scale = property(_get_loss_scale, _set_loss_scale)

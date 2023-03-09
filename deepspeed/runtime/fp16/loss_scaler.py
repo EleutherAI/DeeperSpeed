@@ -35,6 +35,7 @@ class LossScalerBase:
     """
     def __init__(self, cur_scale):
         self.cur_scale = cur_scale
+        self.dynamic = False
 
     @property
     def loss_scale(self):
@@ -117,6 +118,10 @@ class DynamicLossScaler(LossScalerBase):
         self.cur_hysteresis = delayed_shift
         self.consecutive_hysteresis = consecutive_hysteresis
         self.raise_error_at_min_scale = raise_error_at_min_scale
+<<<<<<< HEAD
+=======
+        self.dynamic = True
+>>>>>>> master
 
     # `params` is a list / generator of torch.Variable
     def has_overflow_serial(self, params):
@@ -152,8 +157,14 @@ class DynamicLossScaler(LossScalerBase):
             # self.cur_scale /= self.scale_factor
             if self.delayed_shift == 1 or self.cur_hysteresis == 1:
                 if (self.cur_scale == self.min_scale) and self.raise_error_at_min_scale:
+<<<<<<< HEAD
                     raise Exception("Current loss scale already at minimum - cannot decrease scale anymore. Exiting "
                                     "run.")
+=======
+                    raise Exception(
+                        "Current loss scale already at minimum - cannot decrease scale anymore. Exiting run."
+                    )
+>>>>>>> master
                 self.cur_scale = max(self.cur_scale / self.scale_factor, self.min_scale)
             else:
                 self.cur_hysteresis -= 1
@@ -166,6 +177,18 @@ class DynamicLossScaler(LossScalerBase):
                     self.cur_hysteresis = self.delayed_shift
                 self.cur_scale *= self.scale_factor
         self.cur_iter += 1
+
+
+# Although loss scaling is only defined for fp16, yet for backwards compatibility
+# we still create a scaler for other dtypes (fp32, bf16) which does not perform any scaling.
+def CreateLossScaler(dtype, static_loss_scale, dynamic_scaling, dynamic_loss_args):
+    if dtype == torch.half and dynamic_scaling:
+        if dynamic_loss_args is None:
+            return DynamicLossScaler()
+        return DynamicLossScaler(**dynamic_loss_args)
+
+    loss_scale_value = static_loss_scale if dtype == torch.half else 1.0
+    return LossScaler(scale=loss_scale_value)
 
 
 ##############################################################

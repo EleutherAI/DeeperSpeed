@@ -18,8 +18,11 @@ from copy import deepcopy
 import signal
 import time
 
-from .multinode_runner import PDSHRunner, OpenMPIRunner, MVAPICHRunner, SlurmRunner, MPICHRunner
-from .constants import PDSH_LAUNCHER, OPENMPI_LAUNCHER, MVAPICH_LAUNCHER, SLURM_LAUNCHER, MPICH_LAUNCHER
+import torch.cuda
+
+from .multinode_runner import PDSHRunner, OpenMPIRunner, MVAPICHRunner, SlurmRunner, MPICHRunner, MosaicMLRunner
+from .constants import PDSH_LAUNCHER, OPENMPI_LAUNCHER, MVAPICH_LAUNCHER, SLURM_LAUNCHER, MPICH_LAUNCHER, MOSAICML_LAUNCHER
+
 from ..constants import TORCH_DISTRIBUTED_DEFAULT_PORT
 from ..nebula.constants import NEBULA_EXPORT_ENVS
 from ..utils import logger
@@ -109,20 +112,12 @@ def parse_args(args=None):
                         help="(optional) IP address of node 0, will be "
                         "inferred via 'hostname -I' if not specified.")
 
-<<<<<<< HEAD
-    parser.add_argument("--launcher",
-                        default=PDSH_LAUNCHER,
-                        type=str,
-                        help="(optional) choose launcher backend for multi-node "
-                        "training. Options currently include PDSH, OpenMPI, MVAPICH.")
-=======
     parser.add_argument(
         "--launcher",
         default=PDSH_LAUNCHER,
         type=str,
         help="(optional) choose launcher backend for multi-node "
         "training. Options currently include PDSH, OpenMPI, MVAPICH, SLURM, MPICH.")
->>>>>>> master
 
     parser.add_argument("--launcher_args",
                         default="",
@@ -130,8 +125,6 @@ def parse_args(args=None):
                         help="(optional) pass launcher specific arguments as a "
                         "single quoted argument.")
 
-<<<<<<< HEAD
-=======
     parser.add_argument("--module",
                         action="store_true",
                         help="Change each process to interpret the launch "
@@ -152,17 +145,19 @@ def parse_args(args=None):
                         action="store_true",
                         help="Do not perform ssh check in multi-node launcher model")
 
->>>>>>> master
     parser.add_argument("--force_multi",
                         action="store_true",
                         help="Force multi-node launcher mode, helps in cases where user "
                         "wants to launch on single remote node.")
+    
+    parser.add_argument("--comment",
+                        default="",
+                        type=str,
+                        help="A comment for the run that can provide metadata. Is passed to the SlurmLauncher, if using")
 
-<<<<<<< HEAD
     parser.add_argument("--detect_nvlink_pairs", action="store_true",
                         help="(optional) autodetects nvlink pairs and remaps CUDA_VISIBLE_DEVICES along the "
                              "fastest connections")
-=======
     parser.add_argument(
         "--save_pid",
         action="store_true",
@@ -188,7 +183,6 @@ def parse_args(args=None):
     parser.add_argument("--elastic_training",
                         action="store_true",
                         help="Enable elastic training support in DeepSpeed.")
->>>>>>> master
 
     parser.add_argument("user_script",
                         type=str,
@@ -506,10 +500,8 @@ def main(args=None):
             f"--master_addr={args.master_addr}",
             f"--master_port={args.master_port}"
         ]
-<<<<<<< HEAD
         if args.detect_nvlink_pairs:
             deepspeed_launch += ["--detect_nvlink_pairs"]
-=======
         if args.no_python:
             deepspeed_launch.append("--no_python")
         if args.module:
@@ -525,7 +517,6 @@ def main(args=None):
             deepspeed_launch.append("--enable_elastic_training")
             deepspeed_launch.append(f"--max_elastic_nodes={args.max_elastic_nodes}")
             deepspeed_launch.append(f"--min_elastic_nodes={args.min_elastic_nodes}")
->>>>>>> master
         cmd = deepspeed_launch + [args.user_script] + args.user_args
     else:
         args.launcher = args.launcher.lower()
@@ -539,6 +530,8 @@ def main(args=None):
             runner = MVAPICHRunner(args, world_info_base64, resource_pool)
         elif args.launcher == SLURM_LAUNCHER:
             runner = SlurmRunner(args, world_info_base64, resource_pool)
+        elif args.launcher == MOSAICML_LAUNCHER:
+            runner = MosaicMLRunner(args, world_info_base64)
         else:
             raise NotImplementedError(f"Unknown launcher {args.launcher}")
 

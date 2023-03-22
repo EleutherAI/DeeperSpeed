@@ -477,7 +477,8 @@ def main(args=None):
     # encode world info as base64 to make it easier to pass via command line
     world_info_base64 = encode_world_info(active_resources)
 
-    multi_node_exec = args.force_multi or len(active_resources) > 1
+    #multi_node_exec = args.force_multi or len(active_resources) > 1
+    multi_node_exec = True
 
     if not multi_node_exec:
         deepspeed_launch = [

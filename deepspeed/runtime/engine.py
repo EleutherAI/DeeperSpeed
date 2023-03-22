@@ -1026,6 +1026,7 @@ class DeepSpeedEngine(Module):
                 args.local_rank, int), f"args.local_rank of {args.local_rank} is an unknown type {type(args.local_rank)}"
             if args.local_rank >= 0:
                 env_local_rank = int(os.environ.get("LOCAL_RANK"))
+                args.local_rank = env_local_rank
                 assert (
                     env_local_rank == args.local_rank
                 ), f"Mismatch in local rank setting, args.local_rank={args.local_rank} but env['LOCAL_RANK']={env_local_rank}."

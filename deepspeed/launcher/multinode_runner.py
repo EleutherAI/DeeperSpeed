@@ -253,6 +253,7 @@ class SlurmRunner(MultiNodeRunner):
             'srun',
             '-n',
             f'{total_process_count}',
+            '--label',
         ] + split(self.args.launcher_args)
 
         if getattr(self.args, 'slurm_comment', ''):

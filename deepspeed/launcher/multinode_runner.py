@@ -167,7 +167,8 @@ class OpenMPIRunner(MultiNodeRunner):
             '--mca',
             'plm',
             '^slurm',
-            '--mca',
+            '--tag-output',
+            '--timestamp-output',
         ] + split(self.args.launcher_args)
 
         export_cmd = []

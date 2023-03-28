@@ -10,6 +10,7 @@ import torch
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from packaging import version as pkg_version
+import subprocess
 
 from . import ops
 from . import module_inject
@@ -115,6 +116,11 @@ def initialize(args=None,
         __git_hash__,
         __git_branch__),
              ranks=[0])
+
+    hostname_cmd = ["hostname -I"]
+    result = subprocess.check_output(hostname_cmd, shell=True)
+    hostname = result.decode('utf-8').split()[0]
+    print("Host: {}".format(hostname))
 
     # Disable zero.Init context if it's currently enabled
     zero.partition_parameters.shutdown_init_context()

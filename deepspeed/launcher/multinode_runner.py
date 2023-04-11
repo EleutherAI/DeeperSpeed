@@ -208,6 +208,7 @@ class JSRunner(MultiNodeRunner):
             f'{1}',
             '-a',
             f'{1}',
+            '-E PATH -E LD_LIBRARY_PATH -E LIBRARY_PATH -E CPATH`,
 
         ] + split(self.args.launcher_args)
 

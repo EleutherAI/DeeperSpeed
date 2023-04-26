@@ -1,3 +1,6 @@
+
+'''Copyright The Microsoft DeepSpeed Team'''
+
 import json
 import os
 import sys
@@ -6,7 +9,7 @@ import subprocess
 import warnings
 from shlex import split
 from abc import ABC, abstractmethod
-
+from deepspeed.accelerator import get_accelerator
 from ..utils import logger
 from .constants import PDSH_MAX_FAN_OUT, MVAPICH_TMP_HOSTFILE
 
@@ -67,7 +70,14 @@ class PDSHRunner(MultiNodeRunner):
 
         # PDSH flags for max node fan out and specific hosts to launch on
         # See https://linux.die.net/man/1/pdsh for flag details
-        pdsh_cmd_args = ['pdsh', '-S', '-f', str(PDSH_MAX_FAN_OUT), '-w', active_workers]
+        pdsh_cmd_args = [
+            'pdsh',
+            '-S',
+            '-f',
+            str(PDSH_MAX_FAN_OUT),
+            '-w',
+            active_workers
+        ] + split(self.args.launcher_args)
 
         exports = ""
         for key, val in self.exports.items():
@@ -162,6 +172,110 @@ class OpenMPIRunner(MultiNodeRunner):
                                                         ] + self.user_arguments
 
 
+class JSRunner(MultiNodeRunner):
+    def __init__(self, args, world_info_base64, resource_pool):
+        super().__init__(args, world_info_base64)
+        self.resource_pool = resource_pool
+        self.add_export('CUDA_VISIBLE_DEVICES', '0,1,2,3,4,5')
+
+    def backend_exists(self):
+        #TODO: if IB is available we should suggestion mvapich
+        #This ompi check will still work for jsrun since spectrum-mpi is based on ompi
+        return shutil.which('ompi_info')
+
+    @property
+    def name(self):
+        return "jsrun"
+
+    def validate_args(self):
+        super().validate_args()
+        #TODO: Allow for include/exclude at node-level but not gpu-level
+        if self.args.include != "" or self.args.exclude != "":
+            raise ValueError(
+                f"{self.name} backend does not support worker include/exclusion")
+        if self.args.num_nodes != -1 or self.args.num_gpus != -1:
+            raise ValueError(
+                f"{self.name} backend does not support limiting num nodes/gpus")
+
+    def get_cmd(self, environment, active_resources):
+        total_process_count = sum(self.resource_pool.values())
+
+        jsrun_cmd = [
+            'jsrun',
+            '-n',
+            f'{total_process_count}',
+            '-c',
+            f'{7}',
+            '-g',
+            f'{1}',
+            '-a',
+            f'{1}',
+
+        ] + split(self.args.launcher_args)
+
+        export_cmd = []
+        for k, v in self.exports.items():
+            export_cmd += ['-E', "{}={}".format(k, v)]
+
+        python_exec = []
+        if not self.args.no_python:
+            python_exec = [sys.executable, "-u"]
+            if self.args.module:
+                python_exec.append("-m")
+
+        return jsrun_cmd + export_cmd + python_exec + [self.user_script
+                                                        ] + self.user_arguments
+
+
+class MPICHRunner(MultiNodeRunner):
+    def __init__(self, args, world_info_base64, resource_pool):
+        super().__init__(args, world_info_base64)
+        self.resource_pool = resource_pool
+
+    def backend_exists(self):
+        #TODO: if IB is available we should suggestion mpich
+        return shutil.which('mpirun')  #mpich_info
+
+    @property
+    def name(self):
+        return "mpich"
+
+    def validate_args(self):
+        super().validate_args()
+        #TODO: Allow for include/exclude at node-level but not gpu-level
+        if self.args.include != "" or self.args.exclude != "":
+            raise ValueError(
+                f"{self.name} backend does not support worker include/exclusion")
+
+        if self.args.num_nodes != -1 or self.args.num_gpus != -1:
+            raise ValueError(
+                f"{self.name} backend does not support limiting num nodes/gpus")
+
+    def get_cmd(self, environment, active_resources):
+        devices_per_node = self.resource_pool.values()
+        total_process_count = sum(devices_per_node)
+        process_per_node = list(devices_per_node)[0]
+
+        mpirun_cmd = [
+            'mpirun',
+            '-n',
+            f'{total_process_count}',
+            '-ppn',
+            f'{process_per_node}',
+        ] + split(self.args.launcher_args)
+        export_cmd = []
+
+        for k, v in self.exports.items():
+            export_cmd += ['-x', "{}={}".format(k, v)]
+
+        python_exec = []
+        if not self.args.no_python:
+            python_exec = [sys.executable, "-u"]
+            if self.args.module:
+                python_exec.append("-m")
+        return mpirun_cmd + python_exec + [self.user_script] + self.user_arguments
+
+
 class SlurmRunner(MultiNodeRunner):
     def __init__(self, args, world_info_base64, resource_pool):
         super().__init__(args, world_info_base64)
@@ -210,7 +324,7 @@ class SlurmRunner(MultiNodeRunner):
             'srun',
             '-n',
             f'{total_process_count}',
-        ]
+        ] + split(self.args.launcher_args)
 
         if getattr(self.args, 'comment', ''):
             srun_cmd += ['--comment', self.args.comment]
@@ -249,7 +363,8 @@ class MVAPICHRunner(MultiNodeRunner):
         self.add_export('MV2_DEBUG_SHOW_BACKTRACE', '1')
 
         # Enabled cuda-aware communication
-        self.add_export('MV2_USE_CUDA', '1')
+        if get_accelerator().device_name() == 'cuda':
+            self.add_export('MV2_USE_CUDA', '1')
 
         # Support deep learning frameworks: http://hidl.cse.ohio-state.edu/userguide/horovod/
         self.add_export('MV2_SUPPORT_DL', '1')

@@ -169,13 +169,6 @@ def parse_args(args=None):
         help="Run DeepSpeed autotuner to discover optimal configuration parameters "
         "before running job.")
 
-    parser.add_argument(
-        "--comment",
-        default="",
-        type=str,
-        help="A comment that can be used for metadata."
-    )
-
     parser.add_argument("--elastic_training",
                         action="store_true",
                         help="Enable elastic training support in DeepSpeed.")
@@ -557,7 +550,6 @@ def main(args=None):
             cmd = runner.get_cmd(env, active_resources)
 
     logger.info(f"cmd = {' '.join(cmd)}")
-
     result = subprocess.Popen(cmd, env=env)
 
     def sigkill_handler(signum, frame):

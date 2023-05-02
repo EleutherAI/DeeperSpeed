@@ -661,12 +661,10 @@ class DeepSpeedEngine(Module):
         return self._config.autotuning_config.metric
 
     def autotuning_profile_model_info(self):
-        return (
-            self.autotuning_enabled() and
-            self._config.autotuning_config.model_info and
-            self._config.autotuning_config.model_info.get("profile", False)
-        )
-        
+        return self.autotuning_enabled(
+        ) and self._config.autotuning_config.model_info and self._config.autotuning_config.model_info.get(
+            "profile",
+            False)
 
     def sparse_gradients_enabled(self):
         return self._config.sparse_gradients_enabled
@@ -2206,6 +2204,7 @@ class DeepSpeedEngine(Module):
         if flops_profiler_active:
             if self.autotuning_enabled():
                 self.flops = self.flops_profiler.get_total_flops() * 3
+            else:
                 self.flops_profiler.print_model_profile(
                     profile_step=self.global_steps,
                     module_depth=self.flops_profiler_module_depth(),

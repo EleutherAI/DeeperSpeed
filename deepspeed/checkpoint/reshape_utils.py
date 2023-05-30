@@ -77,6 +77,7 @@ def merge_state_dict(dict_a, dict_b, key_list):
                 if key == PARTITION_COUNT:
                     count_a = _to_list_if_int(dict_a[key])
                     count_b = _to_list_if_int(dict_b[key])
+                    print(f'count_a: {count_a}\ncount_b: {count_b}')
                     merged_dict[key] = merge_state(count_a, count_b, [str(key)])
                 else:
                     merged_dict[key] = merge_state(dict_a[key], dict_b[key], [str(key)])
@@ -98,7 +99,9 @@ def merge_state_list(list_a, list_b, key_list):
     return [merge_state(a, b, key_list) for a, b in zip(list_a, list_b)]
 
 
-def merge_state(state_a, state_b, key_list=[]):
+def merge_state(state_a, state_b, key_list=None):
+    if key_list is None:
+        key_list = []
     if type(state_a) != type(state_b):
         key_list_string = _key_list_to_string(key_list)
         print(f'key_list = {key_list_string}')

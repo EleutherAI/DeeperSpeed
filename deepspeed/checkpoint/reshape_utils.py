@@ -73,12 +73,17 @@ def merge_state_dict(dict_a, dict_b, key_list):
     for key, value in dict_b.items():
         if key in dict_a.keys():
             # TODO: Fix ugliest hack ever
-            if key == PARTITION_COUNT:
-                count_a = _to_list_if_int(dict_a[key])
-                count_b = _to_list_if_int(dict_b[key])
-                merged_dict[key] = merge_state(count_a, count_b, [str(key)])
-            else:
-                merged_dict[key] = merge_state(dict_a[key], dict_b[key], [str(key)])
+            try:
+                if key == PARTITION_COUNT:
+                    count_a = _to_list_if_int(dict_a[key])
+                    count_b = _to_list_if_int(dict_b[key])
+                    merged_dict[key] = merge_state(count_a, count_b, [str(key)])
+                else:
+                    merged_dict[key] = merge_state(dict_a[key], dict_b[key], [str(key)])
+            except ValueError as ve:
+                print(f'dict_a[{key}] == {dict_a[key]}')
+                print(f'dict_b[{key}] == {dict_b[key]}')
+                raise ve
         else:
             merged_dict[key] = value
 

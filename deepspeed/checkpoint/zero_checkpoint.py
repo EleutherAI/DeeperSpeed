@@ -135,11 +135,9 @@ class ZeROCheckpoint(object):
 
     def _update_partition_count(self, sd):
         partition_counts = self._get_optimizer_state(sd, PARTITION_COUNT)
-        if partition_counts:
-            print(partition_counts)
-            try:
-                num_groups = len(partition_counts)
-            except TypeError as te:
-                raise te
-                #raise TypeError(f'Expected list of ints, got {partition_counts}') from te
+        if partition_counts is not None:
+            if isinstance(partition_counts, int):
+                num_groups = 1
+            elif partition_counts:
+                num_groups = len(partition_counts) 
             sd[OPTIMIZER_STATE_DICT][PARTITION_COUNT] = [self.target_3d.dp_degree] * num_groups

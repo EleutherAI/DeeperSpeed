@@ -621,8 +621,7 @@ class PipelineModule(nn.Module):
                 version=2.0,
                 checkpoint_engine=checkpoint_engine)
             load_path, checkpoint, _ = sd_loader.load(mp_world_size, mp_rank, module_key=None, is_pipe_parallel=True)
-
-            layer.load_state_dict(checkpoint)
+            layer.load_state_dict(checkpoint, strict=strict)
 
             # if self._grid.data_parallel_id == 0:
             #     logger.info(

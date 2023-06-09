@@ -80,7 +80,11 @@ class DeepSpeedCheckpoint(object):
     @property
     def original_pp_degree(self):
         return self.zero_checkpoint.get_src_pp_degree()
-
+    
+    @property
+    def original_dp_degree(self):
+        return self.zero_checkpoint.get_src_dp_degree()
+    
     @property
     def zero_files(self):
         return self.zero_checkpoint.file_list

@@ -403,7 +403,7 @@ class MegatronSDLoader(SDLoaderBase):
     def sanity_check(self, ckpt_file_name):
         keys_to_check = [
             "attention.dense.weight", "mlp.dense_4h_to_h.weight", "attention.query_key_value",
-            "mlp.dense_h_to_4h.weight", "mlp.dense_h_to_4h.bias", "word_embeddings.weight"
+            "mlp.dense_h_to_4h.weight", "mlp.dense_h_to_4h.bias"
         ]
 
         sd = self.checkpoint_engine.load(ckpt_file_name, map_location=lambda storage, loc: storage)

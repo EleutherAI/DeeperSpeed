@@ -183,7 +183,6 @@ class DeepSpeedCheckpoint(object):
                 merged_sd = sd
             else:
                 merged_sd = merge_state(merged_sd, sd)
-
         return merged_sd
 
     def get_transformer_state(self, tp_index: int, pp_index: int) -> list:
@@ -202,7 +201,8 @@ class DeepSpeedCheckpoint(object):
 
     def get_final_norm_state(self, tp_index: int) -> Dict:
         assert tp_index in self.tp_to_final_norm_map.keys()
-        sd = torch.load(self.tp_to_final_norm_map[tp_index][0], map_location=torch.device('cpu'))
+        sd_list = [torch.load(fname,  map_location=torch.device('cpu')) for fname in self.tp_to_final_norm_map[tp_index]]
+        sd = self._merge_state_dicts(sd_list)
         return sd
 
     def get_final_norm_files(self, tp_index: int) -> list:

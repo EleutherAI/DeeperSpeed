@@ -25,7 +25,7 @@ ITERATION_KEY = 'iteration'
 SEQUENTIAL_LAYERS = [
     'input_layernorm.weight', 'input_layernorm.bias', 'attention.dense.bias', 'post_attention_layernorm.weight',
     'post_attention_layernorm.bias', 'mlp.dense_4h_to_h.bias', 'position_embeddings.weight', 'attention.rotary_emb.inv_freq',
-    'norm.weight', 'norm.bias', 'final_linear.weight'
+    'norm.weight', 'norm.bias'
 ]
 
 LAYER_CONCAT_DIM = {'attention.dense.weight': 1, 'mlp.dense_4h_to_h.weight': 1}

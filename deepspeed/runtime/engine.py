@@ -1176,7 +1176,7 @@ class DeepSpeedEngine(Module):
 
         optimizer_wrapper = self._do_optimizer_sanity_check(basic_optimizer)
 
-        if optimizer_wrapper == ZERO_OPTIMIZATION:
+        if True: # optimizer_wrapper == ZERO_OPTIMIZATION:
             self.optimizer = self._configure_zero_optimizer(basic_optimizer)
         elif optimizer_wrapper == AMP:
             amp_params = self.amp_params()

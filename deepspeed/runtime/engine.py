@@ -2604,15 +2604,11 @@ class DeepSpeedEngine(Module):
                                                          load_module_only=load_module_only,
                                                          custom_load_fn=custom_load_fn)
 
-        if not load_module_only and load_optimizer_states:
-            load_zero_checkpoint = self.zero_optimization() or self.bfloat16_enabled()
-            if load_zero_checkpoint and load_path is not None:
-                success = self._load_zero_checkpoint(
-                    load_dir,
-                    tag,
-                    load_optimizer_states=load_optimizer_states)
-                if not success:
-                    self.optimizer._restore_from_bit16_weights()
+        load_zero_checkpoint = self.zero_optimization() or self.bfloat16_enabled()
+        if load_zero_checkpoint and load_path is not None:
+            success = False #self._load_zero_checkpoint(load_dir, tag, load_optimizer_states=load_optimizer_states)
+            if not success:
+                self.optimizer._restore_from_bit16_weights()
 
             if self.zero_optimization_partition_weights():
                 self.optimizer.checkpoint_event_epilogue()
@@ -2665,9 +2661,9 @@ class DeepSpeedEngine(Module):
 
         self.loaded_checkpoint_dp_world_size = checkpoint['dp_world_size']
 
-        if load_module_only:
+        if True: #load_module_only:
             deepspeed_states = ['module']
-            if self.optimizer is not None and self.fp16_enabled():
+            if self.optimizer is not None: # and self.fp16_enabled():
                 self.optimizer.refresh_fp32_params()
         else:
             if self.has_moe_layers:
@@ -2759,7 +2755,7 @@ class DeepSpeedEngine(Module):
                     "currently supported.")
             checkpoint_folder = None
             zero_sd_list = self._get_all_zero_checkpoints(load_dir, tag)
-            if zero_sd_list is None:
+            if zero_sd_list is None or [None]:
                 return False
 
         self.optimizer.load_state_dict(state_dict_list=zero_sd_list,

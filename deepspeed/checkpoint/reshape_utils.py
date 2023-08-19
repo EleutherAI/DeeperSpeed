@@ -66,7 +66,7 @@ def _to_list_if_int(list_or_int):
     else:
         return list_or_int
 
-
+"""
 def merge_state_dict(dict_a, dict_b, key_list):
     merged_dict = type(dict_a)({})
 
@@ -81,6 +81,29 @@ def merge_state_dict(dict_a, dict_b, key_list):
                 merged_dict[key] = merge_state(dict_a[key], dict_b[key], [str(key)])
         else:
             merged_dict[key] = value
+    return merged_dict
+"""
+
+def merge_state_dict(dict_a, dict_b, key_list):
+    merged_dict = type(dict_a)({})
+
+    a_keys = set(dict_a.keys())
+    b_keys = set(dict_b.keys())
+
+    for key in a_keys.intersection(b_keys):
+        # TODO: Fix ugliest hack ever
+        if key == PARTITION_COUNT:
+            count_a = _to_list_if_int(dict_a[key])
+            count_b = _to_list_if_int(dict_b[key])
+            merged_dict[key] = merge_state(count_a, count_b, [str(key)])
+        else:
+            merged_dict[key] = merge_state(dict_a[key], dict_b[key], [str(key)])
+
+    for key in (a_keys - b_keys):
+        merged_dict[key] = dict_a[key]
+    for key in (b_keys - a_keys):
+        merged_dict[key] = dict_b[key]
+        
     return merged_dict
 
 

@@ -2667,7 +2667,7 @@ class DeepSpeedEngine(Module):
 
         if load_module_only:
             deepspeed_states = ['module']
-            if self.optimizer is not None and self.fp16_enabled():
+            if self.optimizer is not None:
                 self.optimizer.refresh_fp32_params()
         else:
             if self.has_moe_layers:

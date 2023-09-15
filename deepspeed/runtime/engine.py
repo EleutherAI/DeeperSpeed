@@ -1110,8 +1110,11 @@ class DeepSpeedEngine(Module):
                 if self.global_rank == 0:
                     logger.warning("**** You are using ZeRO with an untested optimizer, proceed with caution *****")
 
-            if model_dtype == torch.bfloat16 and grad_accum_dtype == torch.float32 and self.zero_optimization_stage(
-            ) == 1:
+            if (
+                model_dtype == torch.bfloat16 
+                and (grad_accum_dtype == torch.float32 or grad_accum_dtype == torch.bfloat16) 
+                and self.zero_optimization_stage() == 1
+            ):
                 return BFLOAT16
 
             if model_dtype != grad_accum_dtype:

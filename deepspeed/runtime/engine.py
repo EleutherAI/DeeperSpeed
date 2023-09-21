@@ -394,10 +394,10 @@ class DeepSpeedEngine(Module):
         self.unflatten = util_ops.unflatten
 
     def reinit_params(self):
-        self.param_names = {param: name for name, param in model.named_parameters()}
+        self.param_names = {param: name for name, param in self.model.named_parameters()}
 
         # Configure distributed model
-        self._configure_distributed_model(model)
+        self._configure_distributed_model(self.model)
 
         self._get_model_parameters()
 

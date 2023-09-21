@@ -393,6 +393,47 @@ class DeepSpeedEngine(Module):
         self.flatten = util_ops.flatten
         self.unflatten = util_ops.unflatten
 
+    def reinit_params(self):
+        self.param_names = {param: name for name, param in model.named_parameters()}
+
+        # Configure distributed model
+        self._configure_distributed_model(model)
+
+        self._get_model_parameters()
+
+        # Configure optimizer and scheduler
+        self.optimizer = None
+        self.basic_optimizer = None
+        self.lr_scheduler = None
+        has_optimizer = False
+
+        if optimizer or self.optimizer_name():
+            has_optimizer = True
+        # If no parameters given by init default to module parameters
+        if model_parameters is None:
+            model_parameters = self.module.parameters()
+
+        if has_optimizer:
+            self._configure_optimizer(optimizer, model_parameters)
+            self._configure_lr_scheduler(lr_scheduler)
+            self._report_progress(0)
+        elif self.zero_optimization():
+            # no optim selected but zero is enabled
+            self.optimizer = self._configure_zero_optimizer(optimizer=None)
+        elif self.bfloat16_enabled():
+            self.optimizer = self._configure_bf16_optimizer(optimizer=None)
+
+        # Bookkeeping for sparse support
+        self.sparse_tensor_module_names = set()
+        # if self.sparse_gradients_enabled():
+        for name, module in self.module.named_modules():
+            if isinstance(module,
+                          (torch.nn.Embedding,
+                           torch.nn.EmbeddingBag)) and self.sparse_gradients_enabled():
+                self.sparse_tensor_module_names.add(name + ".weight")
+                logger.info(
+                    "Will convert {} to sparse tensor during training".format(name))
+    
     def destroy(self):
         if self.optimizer is not None and hasattr(self.optimizer, 'destroy'):
             self.optimizer.destroy()

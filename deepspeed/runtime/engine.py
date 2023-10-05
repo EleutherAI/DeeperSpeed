@@ -2669,6 +2669,8 @@ class DeepSpeedEngine(Module):
             deepspeed_states = ['module']
             if self.optimizer is not None:
                 self.optimizer.refresh_fp32_params()
+            if load_lr_scheduler_states and self.lr_scheduler is not None:
+                self.lr_scheduler.load_state_dict(checkpoint['lr_scheduler'])
         else:
             if self.has_moe_layers:
                 largest_group_name = groups._get_max_expert_size_name()

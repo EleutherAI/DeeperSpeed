@@ -177,7 +177,14 @@ def parse_args(args=None):
         "--comment",
         default="",
         type=str,
-        help="A comment that can be used for metadata."
+        help="A comment that can be used for metadata. Used to pass --comment argument to srun in Slurm launcher"
+    )
+
+    parser.add_argument(
+        "--account",
+        default="",
+        type=str,
+        help="Used to pass --account argument to srun in Slurm launcher"
     )
 
     parser.add_argument("--elastic_training",

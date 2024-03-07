@@ -1074,11 +1074,25 @@ class DeepSpeedEngine(Module):
         if self.fp16_enabled():
             if is_zero_init_model:
                 self.__check_params(self.module, torch.half)
-            self.module.half()
+            # selectively avoid casting specially 
+            # marked parameters to 16-bit
+            self.module._apply(
+                lambda t: t.half() if (
+                    t.is_floating_point() and 
+                    not getattr(t, "_deepspeed_no_cast", False)
+                ) else t
+            )
         elif self.bfloat16_enabled():
             if is_zero_init_model:
                 self.__check_params(self.module, torch.bfloat16)
-            self.module.bfloat16()
+            # selectively avoid casting specially 
+            # marked parameters to 16-bit
+            self.module._apply(
+                lambda t: t.bfloat16() if (
+                    t.is_floating_point() and 
+                    not getattr(t, "_deepspeed_no_cast", False)
+                ) else t
+            )
         else:
             self.__check_params(self.module, torch.float)
 

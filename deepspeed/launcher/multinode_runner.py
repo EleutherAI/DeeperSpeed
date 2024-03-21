@@ -198,8 +198,8 @@ class JSRunner(MultiNodeRunner):
     def get_cmd(self, environment, active_resources):
         total_process_count = sum(self.resource_pool.values())
 
-        jsrun_cmd = [
-            'jsrun',
+        jsrun_cmd = [#UCX_LOG_LEVEL=debug jsrun --smpiargs="-ucx" -n2 -g6 python -c 'from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank()); MPI.COMM_WORLD.Barrier()'
+            'jsrun', '--smpiargs=\"-tcp\"', # Can use -ucx or -tcp. On Summit+ only tcp works.
             '-n',
             f'{total_process_count}',
             '-c',

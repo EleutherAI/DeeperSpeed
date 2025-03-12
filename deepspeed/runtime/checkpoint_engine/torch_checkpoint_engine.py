@@ -19,7 +19,10 @@ class TorchCheckpointEngine(CheckpointEngine):
 
     def save(self, state_dict, path: str):
         logger.info(f"[Torch] Saving {path}...")
-        torch.save(state_dict, path)
+        if path.contains("s3://"):
+            pass
+        else:
+            torch.save(state_dict, path)
         logger.info(f"[Torch] Saved {path}.")
         return None
 

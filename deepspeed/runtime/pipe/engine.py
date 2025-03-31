@@ -810,6 +810,7 @@ class PipelineEngine(DeepSpeedEngine):
         # mechanisms.
         if self.is_last_stage():
             super().backward(self.loss)
+            self.mem_status('AFTER BWD')
             # Free up the memory from the output of forward()
             self.pipe_buffers['outputs'][buffer_id] = None
             self.pipe_buffers['output_tensors'][buffer_id] = None

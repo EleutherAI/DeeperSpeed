@@ -1843,7 +1843,13 @@ class DeepSpeedZeroOptimizer(ZeROOptimizer):
             if self.cpu_offload:
                 self.reset_cpu_buffers()
             else:
+                # Make sure to release ipg buffers in case of overflow
                 self.averaged_gradients = {}
+                self._release_ipg_buffers()
+                self.grads_in_ipg_bucket = []
+                self.params_in_ipg_bucket = []
+                self.ipg_bucket_has_moe_params = False
+                self.elements_in_ipg_bucket = 0
 
             see_memory_usage('After overflow after clearing gradients')
 

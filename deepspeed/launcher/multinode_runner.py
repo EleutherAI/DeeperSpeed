@@ -94,6 +94,7 @@ class OpenMPIRunner(MultiNodeRunner):
         assert not self.args.detect_nvlink_pairs, "openmpi backend does not support remapping visible devices"
         total_process_count = sum(self.resource_pool.values())
         allow_run_as_root = os.environ.get('RUN_MPI_AS_ROOT', False)
+        
         # Default
         # mpirun_cmd = [
         #     'mpirun',
@@ -108,6 +109,19 @@ class OpenMPIRunner(MultiNodeRunner):
         #     'btl_tcp_if_include',
         #     'eth0',
         # ]
+
+        # NOTE: Copied from latter version of DeeperSpeed
+        launcher_args = split(self.args.launcher_args)
+
+        # NOTE: Copied from latter version of DeeperSpeed
+        # If btl_tcp_if_include option is provided through launcher_args, we use it. Otherwise, we add
+        # `--mca btl_tcp_if_include eth0` option as a default value for compatibility.
+        btl_tcp_opt = ['--mca', 'btl_tcp_if_include', 'eth0']
+        if len(launcher_args) >= 2:
+            for i in range(len(launcher_args) - 1):
+                if launcher_args[i] in ['-mca', '--mca'] and launcher_args[i + 1] == 'btl_tcp_if_include':
+                    btl_tcp_opt = []
+                    break
 
         # Custom from previous PI cluster
         mpirun_cmd = [
@@ -139,8 +153,7 @@ class OpenMPIRunner(MultiNodeRunner):
             'CUDA_DEVICE_ORDER=PCI_BUS_ID',
             '--bind-to',
             'none',
-        ]
-        # ] + btl_tcp_opt + launcher_args
+        ] + btl_tcp_opt + launcher_args
 
         # Allow running as root
         # if allow_run_as_root:

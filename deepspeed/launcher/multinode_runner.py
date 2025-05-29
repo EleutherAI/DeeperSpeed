@@ -94,7 +94,7 @@ class OpenMPIRunner(MultiNodeRunner):
         assert not self.args.detect_nvlink_pairs, "openmpi backend does not support remapping visible devices"
         total_process_count = sum(self.resource_pool.values())
         allow_run_as_root = os.environ.get('RUN_MPI_AS_ROOT', False)
-        
+
         # Default
         # mpirun_cmd = [
         #     'mpirun',
@@ -165,8 +165,11 @@ class OpenMPIRunner(MultiNodeRunner):
 
         python_exec = [sys.executable, "-u"]
 
-        return mpirun_cmd + export_cmd + python_exec + [self.user_script
+        all_cmpi_args = mpirun_cmd + export_cmd + python_exec + [self.user_script
                                                         ] + self.user_arguments
+        print("All MPI args:")
+        print(all_cmpi_args)
+        return all_cmpi_args
 
 
 class MVAPICHRunner(MultiNodeRunner):

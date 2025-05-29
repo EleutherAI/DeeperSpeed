@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import warnings
 from abc import ABC, abstractmethod
+from shlex import split
 
 from ..utils import logger
 from .constants import PDSH_MAX_FAN_OUT, MVAPICH_TMP_HOSTFILE

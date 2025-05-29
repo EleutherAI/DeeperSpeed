@@ -94,22 +94,58 @@ class OpenMPIRunner(MultiNodeRunner):
         assert not self.args.detect_nvlink_pairs, "openmpi backend does not support remapping visible devices"
         total_process_count = sum(self.resource_pool.values())
         allow_run_as_root = os.environ.get('RUN_MPI_AS_ROOT', False)
+        # Default
+        # mpirun_cmd = [
+        #     'mpirun',
+        #     '-n',
+        #     f'{total_process_count}',
+        #     '-hostfile',
+        #     f'{self.args.hostfile}',
+        #     '--mca',
+        #     'btl',
+        #     '^openib',
+        #     '--mca',
+        #     'btl_tcp_if_include',
+        #     'eth0',
+        # ]
+
+        # Custom from previous PI cluster
         mpirun_cmd = [
             'mpirun',
-            '-n',
+            '--allow-run-as-root',
+            '-np',
             f'{total_process_count}',
             '-hostfile',
             f'{self.args.hostfile}',
-            '--mca',
-            'btl',
-            '^openib',
-            '--mca',
-            'btl_tcp_if_include',
-            'eth0',
+            '-mca',
+            'btl tcp,self',
+            '-mca',
+            'coll_hcoll_enable 0',
+            '-mca',
+            'plm_rsh_args "-p 2222"',
+            '-x',
+            'PATH',
+            '-x',
+            'LD_LIBRARY_PATH',
+            '-x',
+            'NCCL_IB_AR_THRESHOLD=0',
+            '-x',
+            'NCCL_IB_PCI_RELAXED_ORDERING=1',
+            '-x',
+            'NCCL_IB_SPLIT_DATA_ON_QPS=0',
+            '-x',
+            'NCCL_IB_QPS_PER_CONNECTION=2',
+            '-x',
+            'CUDA_DEVICE_ORDER=PCI_BUS_ID',
+            '--bind-to',
+            'none',
         ]
-        if allow_run_as_root:
-            mpirun_cmd.insert(1, '--allow-run-as-root')
-            
+        # ] + btl_tcp_opt + launcher_args
+
+        # Allow running as root
+        # if allow_run_as_root:
+        #     mpirun_cmd.insert(1, '--allow-run-as-root')
+
         export_cmd = []
         for k, v in self.exports.items():
             export_cmd += ['-x', f'{k}={v}']

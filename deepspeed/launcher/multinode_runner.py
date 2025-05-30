@@ -124,6 +124,8 @@ class OpenMPIRunner(MultiNodeRunner):
                     btl_tcp_opt = []
                     break
 
+        print("===================== MPI =====================")
+
         # Custom from previous PI cluster
         mpirun_cmd = [
             'mpirun',
@@ -133,11 +135,17 @@ class OpenMPIRunner(MultiNodeRunner):
             '-hostfile',
             f'{self.args.hostfile}',
             '-mca',
-            'btl tcp,self',
+            'btl',
+            'tcp,self',
             '-mca',
-            'coll_hcoll_enable 0',
+            'coll_hcoll_enable',
+            '0',
             '-mca',
-            'plm_rsh_args "-p 2222"',
+            'plm_rsh_agent',
+            'ssh',
+            '-mca',
+            'plm_rsh_args',
+            '-p 2222',
             '-x',
             'PATH',
             '-x',

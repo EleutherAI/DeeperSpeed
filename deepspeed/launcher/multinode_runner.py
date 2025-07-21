@@ -470,7 +470,7 @@ class SlurmRunner(MultiNodeRunner):
 
         if self.args.include != "":
             srun_cmd.append('--nodelist')
-            srun_cmd.append(self._pdsh_include_to_nodelist(self.args.include)) 
+            srun_cmd.append(self._pdsh_include_to_nodelist(self.args.include))
 
         if self.args.num_nodes > 0:
             srun_cmd.append('--nodes')
@@ -483,9 +483,73 @@ class SlurmRunner(MultiNodeRunner):
         for key, val in self.exports.items():
             exports += f",{key}={val}"
 
+
+    # run -n 2 --gpus 2 --mpi=pmix \
+    # --export=ALL,NCCL_VERSION="2.25.1",NCCL_SOCKET_IFNAME="hsn",NCCL_NET_GDR_LEVEL="PHB",NCCL_HOME="/tools/brics/apps/nccl/v2.25.1-1-v1.6.x-r2/",NCCL_NET="AWS Libfabric",WANDB_API_KEY="689a18ccf36252478f4839de76b626c27f58bdea",PYTHONIOENCODING="utf-8",NCCL_CROSS_NIC="0",PYTHONPATH="/home/a5k/kyleobrien.a5k/gpt-neox" \
+    # singularity exec \
+        # --bind /home/a5k/kyleobrien.a5k/logs:/logs \
+        # --bind /home/a5k/kyleobrien.a5k/data:/data \
+        # --bind /home/a5k/kyleobrien.a5k/checkpoints:/checkpoints \
+        # --bind /var/spool/slurmd/conf-cache:/var/spool/slurmd/conf-cache:ro \
+        # --bind /home/a5k/kyleobrien.a5k/filtering_for_danger/lm_eval_tasks:/workspace/lm_eval_tasks \
+        # --bind /home/a5k/kyleobrien.a5k/filtering_for_danger/neox/configs:/workspace/gpt-neox/configs/synced \
+        # --bind /home/a5k/kyleobrien.a5k/gpt-neox:/workspace/local_repos/gpt-neox \
+        # --bind /home/a5k/kyleobrien.a5k:/workspace/local_repos \
+        # --bind /etc/slurm:/etc/slurm:ro \
+        # --bind /var/run/munge:/var/run/munge \
+        # --bind /usr/bin/srun:/usr/bin/srun:ro \
+        # --bind /usr/bin/scontrol:/usr/bin/scontrol:ro \
+        # --bind /usr/bin/sinfo:/usr/bin/sinfo:ro \
+        # --bind /usr/bin/sbatch:/usr/bin/sbatch:ro \
+        # --bind /usr/bin/scancel:/usr/bin/scancel:ro \
+        # --bind /usr/bin/squeue:/usr/bin/squeue:ro \
+        # --bind /usr/lib64/libslurm.so:/usr/lib64/libslurm.so:ro \
+        # --bind /usr/lib64/libslurm.so.39:/usr/lib64/libslurm.so.39:ro \
+        # --bind /usr/lib64/libslurm.so.39.0.0:/usr/lib64/libslurm.so.39.0.0:ro \
+        # --bind /usr/lib64/slurm:/usr/lib64/slurm:ro \
+        # --pwd /home/a5k/kyleobrien.a5k/gpt-neox \
+        # --nv /home/a5k/kyleobrien.a5k/filtering_for_danger/neox/training-env.sif \
+    #     bash -c "
+    #     source /host/adapt.sh
+    #     python -u train.py \
+    #     --deepspeed_config eyJ0cmFpbl9iYXRjaF9zaXplIjogMzIsICJ0cmFpbl9taWNyb19iYXRjaF9zaXplX3Blcl9ncHUiOiAzMiwgIm9wdGltaXplciI6IHsidHlwZSI6ICJBZGFtIiwgInBhcmFtcyI6IHsibHIiOiAwLjAwMDMsICJiZXRhcyI6IFswLjksIDAuOTVdLCAiZXBzIjogMWUtMDh9fSwgInplcm9fb3B0aW1pemF0aW9uIjogeyJzdGFnZSI6IDEsICJhbGxnYXRoZXJfcGFydGl0aW9ucyI6IHRydWUsICJhbGxnYXRoZXJfYnVja2V0X3NpemUiOiAxMjYwMDAwMDAwLCAib3ZlcmxhcF9jb21tIjogdHJ1ZSwgInJlZHVjZV9zY2F0dGVyIjogdHJ1ZSwgInJlZHVjZV9idWNrZXRfc2l6ZSI6IDEyNjAwMDAwMDAsICJjb250aWd1b3VzX2dyYWRpZW50cyI6IHRydWUsICJjcHVfb2ZmbG9hZCI6IGZhbHNlfSwgIndhbGxfY2xvY2tfYnJlYWtkb3duIjogdHJ1ZSwgImJmMTYiOiB7ImVuYWJsZWQiOiB0cnVlfX0= \
+    #     --megatron_config eyJudW1fZ3B1cyI6IDEsICJsYXVuY2hlciI6ICJzbHVybSIsICJub19zc2hfY2hlY2siOiB0cnVlLCAidHJhaW5fYmF0Y2hfc2l6ZSI6IDMyLCAidHJhaW5fbWljcm9fYmF0Y2hfc2l6ZV9wZXJfZ3B1IjogMzIsICJvcHRpbWl6ZXIiOiB7InR5cGUiOiAiQWRhbSIsICJwYXJhbXMiOiB7ImxyIjogMC4wMDAzLCAiYmV0YXMiOiBbMC45LCAwLjk1XSwgImVwcyI6IDFlLTA4fX0sICJ6ZXJvX29wdGltaXphdGlvbiI6IHsic3RhZ2UiOiAxLCAiYWxsZ2F0aGVyX3BhcnRpdGlvbnMiOiB0cnVlLCAiYWxsZ2F0aGVyX2J1Y2tldF9zaXplIjogMTI2MDAwMDAwMCwgIm92ZXJsYXBfY29tbSI6IHRydWUsICJyZWR1Y2Vfc2NhdHRlciI6IHRydWUsICJyZWR1Y2VfYnVja2V0X3NpemUiOiAxMjYwMDAwMDAwLCAiY29udGlndW91c19ncmFkaWVudHMiOiB0cnVlLCAiY3B1X29mZmxvYWQiOiBmYWxzZX0sICJ3YWxsX2Nsb2NrX2JyZWFrZG93biI6IHRydWUsICJkZWVwc3BlZWRfZXh0cmFfYXJncyI6IHsiYmYxNiI6IHsiZW5hYmxlZCI6IHRydWV9fSwgInByZWNpc2lvbiI6ICJiZmxvYXQxNiIsICJudW1fbGF5ZXJzIjogMzIsICJoaWRkZW5fc2l6ZSI6IDQwOTYsICJudW1fYXR0ZW50aW9uX2hlYWRzIjogMzIsICJzZXFfbGVuZ3RoIjogMjA0OCwgIm1heF9wb3NpdGlvbl9lbWJlZGRpbmdzIjogMjA0OCwgInBvc19lbWIiOiAicm90YXJ5IiwgIm5vX3dlaWdodF90eWluZyI6IHRydWUsICJhdHRlbnRpb25fY29uZmlnIjogWyJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCIsICJmbGFzaCJdLCAic3BhcnNpdHlfY29uZmlnIjoge30sICJzY2FsZWRfdXBwZXJfdHJpYW5nX21hc2tlZF9zb2Z0bWF4X2Z1c2lvbiI6IHRydWUsICJyb3RhcnlfcGN0IjogMC4yNSwgImdwdF9qX3Jlc2lkdWFsIjogdHJ1ZSwgInRlX2xheWVybm9ybV9tbHAiOiB0cnVlLCAidGVfbWhhIjogdHJ1ZSwgInRlX2ZwOF93Z3JhZCI6IGZhbHNlLCAibHJfZGVjYXlfc3R5bGUiOiAiY29zaW5lIiwgImxyX2RlY2F5X2l0ZXJzIjogMzgxNDY5NywgIm1pbl9sciI6IDEuMmUtMDUsICJvcHRpbWl6ZXJfdHlwZSI6ICJBZGFtIiwgInplcm9fc3RhZ2UiOiAxLCAiemVyb19yZWR1Y2Vfc2NhdHRlciI6IHRydWUsICJ6ZXJvX2NvbnRpZ3VvdXNfZ3JhZGllbnRzIjogdHJ1ZSwgInplcm9fcmVkdWNlX2J1Y2tldF9zaXplIjogMTI2MDAwMDAwMCwgInplcm9fYWxsZ2F0aGVyX2J1Y2tldF9zaXplIjogMTI2MDAwMDAwMCwgImxyIjogMC4wMDAzLCAidG9rZW5pemVyX3R5cGUiOiAiSEZUb2tlbml6ZXIiLCAiZGF0YV9wYXRoIjogIi9kYXRhL2Vud2lrOC9lbndpazhfdGV4dF9kb2N1bWVudCIsICJkYXRhX2ltcGwiOiAibW1hcCIsICJzYXZlIjogIi9jaGVja3BvaW50cy9pc2FtYmFyZF9zaW5nbGVfbm9kZV90ZXN0X3ByZXRyYWluaW5nIiwgImNvbmZpZ19maWxlcyI6IHsiaXNhbWJhcmRfc2luZ2xlX25vZGVfdGVzdC55bWwiOiAie1xuICAjIFRva2Vuc1xuICBcImRhdGFfcGF0aFwiOiBcIi9kYXRhL2Vud2lrOC9lbndpazhfdGV4dF9kb2N1bWVudFwiLFxuICBcInZvY2FiX2ZpbGVcIjogXCIvZGF0YS9uZW94X3Rva2VuaXplci90b2tlbml6ZXIuanNvblwiLFxuICBcInRva2VuaXplcl90eXBlXCI6IFwiSEZUb2tlbml6ZXJcIixcbiAgXCJkYXRhX2ltcGxcIjogXCJtbWFwXCIsXG5cbiAgIyBMb2dnaW5nXG4gIFwiY2hlY2twb2ludF92YWxpZGF0aW9uX3dpdGhfZm9yd2FyZF9wYXNzXCI6IGZhbHNlLFxuICBcInRlbnNvcmJvYXJkX2RpclwiOiBcInRlbnNvcmJvYXJkXCIsXG4gIFwibG9nX2RpclwiOiBcIi9sb2dzXCIsXG4gIFwibG9nX2ludGVydmFsXCI6IDEwLFxuICBcInN0ZXBzX3Blcl9wcmludFwiOiAxMCxcbiAgXCJ3YWxsX2Nsb2NrX2JyZWFrZG93blwiOiB0cnVlLFxuICBcInVzZV93YW5kYlwiOiB0cnVlLFxuICBcIndhbmRiX2hvc3RcIjogXCJodHRwczovL2FwaS53YW5kYi5haVwiLFxuICBcIndhbmRiX3Byb2plY3RcIjogXCJBSVNJXCIsXG4gIFwid2FuZGJfdGVhbVwiOiBcImVsZXV0aGVyYWlcIixcbiAgXCJ3YW5kYl9ydW5fbmFtZVwiOiBcImlzYW1iYXJkX3NpbmdsZV9ub2RlX3Rlc3RcIixcblxuICAjIERpc3RyaWJ1dGVkIFRyYWluaW5nIC0gRm9yIGxvY2FsIGV4ZWN1dGlvblxuICAjIFJlbW92ZSBhbGwgbGF1bmNoZXItcmVsYXRlZCBzZXR0aW5ncyBzaW5jZSB3ZSdyZSBydW5uaW5nIGxvY2FsbHlcbiAgXCJwaXBlX3BhcmFsbGVsX3NpemVcIjogMSxcbiAgXCJtb2RlbF9wYXJhbGxlbF9zaXplXCI6IDEsXG5cbiAgIyBUcmFpbmluZyBEdXJhdGlvbiAtIEFkanVzdGVkIGZvciBzaW5nbGUgbm9kZVxuICAjIDUwMEIgKHRva2VucykgLyAoMSAoZ3JhZCBhY2MpICogNCAoR1BVcykgKiAzMiAobWljcm8gYmF0Y2ggc2l6ZSkgKiAyMDQ4IChzZXEgbGVuZ3RoKSlcbiAgXCJ0cmFpbl9pdGVyc1wiOiAzODE0Njk3LFxuICBcImxyX2RlY2F5X2l0ZXJzXCI6IDM4MTQ2OTcsXG4gIFwiZGlzdHJpYnV0ZWRfYmFja2VuZFwiOiBcIm5jY2xcIixcbiAgXCJscl9kZWNheV9zdHlsZVwiOiBcImNvc2luZVwiLFxuICBcIndhcm11cFwiOiAwLjAxLFxuICBcInNwbGl0XCI6IFwiMTAwLDAsMFwiLFxuXG4gIFwibGF1bmNoZXJcIjogXCJzbHVybVwiLFxuICBcImRlZXBzcGVlZF9zbHVybVwiOiB0cnVlLFxuICBcIm5vX3NzaF9jaGVja1wiOiB0cnVlLFxuICBcIm51bV9ncHVzXCI6IDEsXG5cbiAgIyBBcmNoaXRlY3R1cmVcbiAgXCJudW1fbGF5ZXJzXCI6IDMyLFxuICBcImhpZGRlbl9zaXplXCI6IDQwOTYsXG4gIFwibnVtX2F0dGVudGlvbl9oZWFkc1wiOiAzMixcbiAgXCJzZXFfbGVuZ3RoXCI6IDIwNDgsXG4gIFwibWF4X3Bvc2l0aW9uX2VtYmVkZGluZ3NcIjogMjA0OCxcbiAgXCJub3JtXCI6IFwibGF5ZXJub3JtXCIsXG4gIFwicG9zX2VtYlwiOiBcInJvdGFyeVwiLFxuICBcInJvdGFyeV9wY3RcIjogMC4yNSxcbiAgXCJub193ZWlnaHRfdHlpbmdcIjogdHJ1ZSxcbiAgXCJncHRfal9yZXNpZHVhbFwiOiB0cnVlLFxuICBcIm91dHB1dF9sYXllcl9wYXJhbGxlbGlzbVwiOiBcImNvbHVtblwiLFxuICBcImF0dGVudGlvbl9jb25maWdcIjogW1tbXCJmbGFzaFwiXSwgMzJdXSxcbiAgXCJzY2FsZWRfdXBwZXJfdHJpYW5nX21hc2tlZF9zb2Z0bWF4X2Z1c2lvblwiOiB0cnVlLFxuICBcInByZWNpc2lvblwiOiBcImJmbG9hdDE2XCIsXG4gIFwiYWN0aXZhdGlvblwiOiBcImdlbHVcIixcblxuICAjIFRyYW5zZm9ybWVyIEVuZ2luZVxuICBcInRlX2NvbHVtbnBhcmFsbGVsXCI6IGZhbHNlLFxuICBcInRlX3Jvd3BhcmFsbGVsXCI6IGZhbHNlLFxuICBcInRlX2xheWVybm9ybV9tbHBcIjogdHJ1ZSxcbiAgXCJ0ZV9taGFcIjogdHJ1ZSxcbiAgXCJ0ZV9mcDhfZm9ybWF0XCI6IFwiaHlicmlkXCIsXG4gIFwidGVfZnA4X3dncmFkXCI6IGZhbHNlLFxuICBcInRlX2ZwOF9hbWF4X2hpc3RvcnlfbGVuXCI6IDEsXG4gIFwidGVfZnA4X2FtYXhfY29tcHV0ZV9hbGdvXCI6IFwibW9zdF9yZWNlbnRcIixcbiAgXCJ0ZV9mcDhfbWFyZ2luXCI6IDAsXG4gIFwidGVfZnA4X21oYVwiOiBmYWxzZSxcblxuICAjIE9wdGltaXphdGlvblxuICBcIm9wdGltaXplclwiOiB7XG4gICAgXCJ0eXBlXCI6IFwiQWRhbVwiLFxuICAgIFwicGFyYW1zXCI6IHsgXCJsclwiOiAwLjAwMDMsIFwiYmV0YXNcIjogWzAuOSwgMC45NV0sIFwiZXBzXCI6IDEuMGUtOCB9XG4gIH0sXG4gIFwibWluX2xyXCI6IDAuMDAwMDEyLFxuICBcInplcm9fb3B0aW1pemF0aW9uXCI6IHtcbiAgICBcInN0YWdlXCI6IDEsXG4gICAgXCJhbGxnYXRoZXJfcGFydGl0aW9uc1wiOiB0cnVlLFxuICAgIFwiYWxsZ2F0aGVyX2J1Y2tldF9zaXplXCI6IDEyNjAwMDAwMDAsXG4gICAgXCJvdmVybGFwX2NvbW1cIjogdHJ1ZSxcbiAgICBcInJlZHVjZV9zY2F0dGVyXCI6IHRydWUsXG4gICAgXCJyZWR1Y2VfYnVja2V0X3NpemVcIjogMTI2MDAwMDAwMCxcbiAgICBcImNvbnRpZ3VvdXNfZ3JhZGllbnRzXCI6IHRydWUsXG4gICAgXCJjcHVfb2ZmbG9hZFwiOiBmYWxzZVxuICB9LFxuICBcInRyYWluX21pY3JvX2JhdGNoX3NpemVfcGVyX2dwdVwiOiAzMixcbiAgXCJncmFkaWVudF9hY2N1bXVsYXRpb25fc3RlcHNcIjogMSxcbiAgXCJncmFkaWVudF9jbGlwcGluZ1wiOiAxLjAsXG4gIFwid2VpZ2h0X2RlY2F5XCI6IDAuMSxcbiAgXCJoaWRkZW5fZHJvcG91dFwiOiAwLFxuICBcImF0dGVudGlvbl9kcm9wb3V0XCI6IDAsXG5cbiAgIyBDaGVja3BvaW50aW5nXG4gIFwiY2hlY2twb2ludF9hY3RpdmF0aW9uc1wiOiB0cnVlLFxuICBcImNoZWNrcG9pbnRfbnVtX2xheWVyc1wiOiAxLFxuICBcInBhcnRpdGlvbl9hY3RpdmF0aW9uc1wiOiB0cnVlLFxuICBcInN5bmNocm9uaXplX2VhY2hfbGF5ZXJcIjogdHJ1ZSxcbiAgXCJjaGVja3BvaW50X2ZhY3RvclwiOiAxMTkyLFxuICBcInNhdmVcIjogXCIvY2hlY2twb2ludHMvaXNhbWJhcmRfc2luZ2xlX25vZGVfdGVzdF9wcmV0cmFpbmluZ1wiLFxuICBcImxvYWRcIjogXCIvY2hlY2twb2ludHMvaXNhbWJhcmRfc2luZ2xlX25vZGVfdGVzdF9wcmV0cmFpbmluZ1wiLFxuXG4gICMgRXZhbHVhdGlvblxuICBcImV2YWxfaXRlcnNcIjogMCxcbiAgXCJldmFsX2ludGVydmFsXCI6IDUsXG4gIFwiZXZhbF9yZXN1bHRzX3ByZWZpeFwiOiBcImlzYW1iYXJkX3NpbmdsZV9ub2RlX3Rlc3RcIlxufSJ9LCAibG9hZCI6ICIvY2hlY2twb2ludHMvaXNhbWJhcmRfc2luZ2xlX25vZGVfdGVzdF9wcmV0cmFpbmluZyIsICJjaGVja3BvaW50X2ZhY3RvciI6IDExOTIsICJiYXRjaF9zaXplIjogMzIsICJ0cmFpbl9pdGVycyI6IDM4MTQ2OTcsICJldmFsX2l0ZXJzIjogMCwgImV2YWxfaW50ZXJ2YWwiOiA1LCAic3BsaXQiOiAiMTAwLDAsMCIsICJ2b2NhYl9maWxlIjogIi9kYXRhL25lb3hfdG9rZW5pemVyL3Rva2VuaXplci5qc29uIiwgImNoZWNrcG9pbnRfYWN0aXZhdGlvbnMiOiB0cnVlLCAic3luY2hyb25pemVfZWFjaF9sYXllciI6IHRydWUsICJwYXJ0aXRpb25fYWN0aXZhdGlvbnMiOiB0cnVlLCAiZHluYW1pY19sb3NzX3NjYWxlIjogdHJ1ZSwgInBpcGVfcGFyYWxsZWxfc2l6ZSI6IDEsICJ3b3JsZF9zaXplIjogMSwgImlzX3BpcGVfcGFyYWxsZWwiOiB0cnVlLCAidXNlX3dhbmRiIjogdHJ1ZSwgIndhbmRiX2dyb3VwIjogIml3YzYzYWVqX3NrN2xmaWpiIiwgIndhbmRiX3J1bl9uYW1lIjogImlzYW1iYXJkX3NpbmdsZV9ub2RlX3Rlc3QiLCAid2FuZGJfdGVhbSI6ICJlbGV1dGhlcmFpIiwgIndhbmRiX3Byb2plY3QiOiAiQUlTSSIsICJsb2dfZGlyIjogIi9sb2dzIiwgInRlbnNvcmJvYXJkX2RpciI6ICJ0ZW5zb3Jib2FyZCIsICJsb2dfaW50ZXJ2YWwiOiAxMCwgInRleHRfZ2VuX3R5cGUiOiAidW5jb25kaXRpb25hbCIsICJldmFsX3Jlc3VsdHNfcHJlZml4IjogImlzYW1iYXJkX3NpbmdsZV9ub2RlX3Rlc3QiLCAibG9jYWxfcmFuayI6IDAsICJyYW5rIjogMCwgImRlZXBzcGVlZF9zbHVybSI6IHRydWUsICJ1c2VyX3NjcmlwdCI6ICJ0cmFpbi5weSIsICJnbG9iYWxfbnVtX2dwdXMiOiAxfQ==
+    #     "
         python_exec = [sys.executable, "-u"]
-        command = srun_cmd + [exports] + python_exec + [self.user_script] + self.user_arguments
-        return command
+        singularity_args = [
+            "singularity exec",
+            "--bind /home/a5k/kyleobrien.a5k/logs:/logs",
+            "--bind /home/a5k/kyleobrien.a5k/data:/data",
+            "--bind /home/a5k/kyleobrien.a5k/checkpoints:/checkpoints",
+            "--bind /var/spool/slurmd/conf-cache:/var/spool/slurmd/conf-cache:ro",
+            "--bind /home/a5k/kyleobrien.a5k/filtering_for_danger/lm_eval_tasks:/workspace/lm_eval_tasks",
+            "--bind /home/a5k/kyleobrien.a5k/filtering_for_danger/neox/configs:/workspace/gpt-neox/configs/synced",
+            "--bind /home/a5k/kyleobrien.a5k/gpt-neox:/workspace/local_repos/gpt-neox",
+            "--bind /home/a5k/kyleobrien.a5k:/workspace/local_repos",
+            "--bind /etc/slurm:/etc/slurm:ro",
+            "--bind /var/run/munge:/var/run/munge",
+            "--bind /usr/bin/srun:/usr/bin/srun:ro",
+            "--bind /usr/bin/scontrol:/usr/bin/scontrol:ro",
+            "--bind /usr/bin/sinfo:/usr/bin/sinfo:ro",
+            "--bind /usr/bin/sbatch:/usr/bin/sbatch:ro",
+            "--bind /usr/bin/scancel:/usr/bin/scancel:ro",
+            "--bind /usr/bin/squeue:/usr/bin/squeue:ro",
+            "--bind /usr/lib64/libslurm.so:/usr/lib64/libslurm.so:ro",
+            "--bind /usr/lib64/libslurm.so.39:/usr/lib64/libslurm.so.39:ro",
+            "--bind /usr/lib64/libslurm.so.39.0.0:/usr/lib64/libslurm.so.39.0.0:ro",
+            "--bind /usr/lib64/slurm:/usr/lib64/slurm:ro",
+            "--pwd /home/a5k/kyleobrien.a5k/gpt-neox",
+            "--nv",
+            "/home/a5k/kyleobrien.a5k/filtering_for_danger/neox/training-env.sif",
+        ]
+        launch_script = f"""bash -c "
+        source /host/adapt.sh
+        {python_exec} {self.user_script} {self.user_arguments}
+        """
+
+        # command = srun_cmd + [exports] + python_exec + [self.user_script] + self.user_arguments
+        command_with_singularity = srun_cmd + [exports] + singularity_args + [launch_script]
+        return command_with_singularity
 
 
 class MVAPICHRunner(MultiNodeRunner):

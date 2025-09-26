@@ -470,7 +470,7 @@ class SlurmRunner(MultiNodeRunner):
 
         if self.args.include != "":
             srun_cmd.append('--nodelist')
-            srun_cmd.append(self._pdsh_include_to_nodelist(self.args.include)) 
+            srun_cmd.append(self._pdsh_include_to_nodelist(self.args.include))
 
         if self.args.num_nodes > 0:
             srun_cmd.append('--nodes')
@@ -479,7 +479,7 @@ class SlurmRunner(MultiNodeRunner):
             srun_cmd.append('--gpus')
             srun_cmd.append(f'{self.args.num_gpus}')
 
-        exports = '--export=ALL'
+        exports = '--export=ALL,TORCH_CUDA_ARCH_LIST=9.0'
         for key, val in self.exports.items():
             exports += f",{key}={val}"
 

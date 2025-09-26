@@ -424,6 +424,168 @@ class PipelineEngine(DeepSpeedEngine):
         # TODO: should return precisely what loss returned and allow others to be queried?
         return self.agg_train_loss
 
+    def train_gdiff_batch(self, forget_iter, retain_iter, alpha=40.0):
+        """Train using gradient difference on forget and retain sets.
+
+        Implements gradient difference unlearning by computing:
+        L_total = α * L_retain - L_forget
+
+        Higher α values mean more emphasis on retention (less forgetting).
+        Lower α values mean less emphasis on retention (more forgetting).
+
+        This performs forward passes on both datasets, computes the combined loss,
+        and does a single backward pass with the combined gradients.
+
+        Args:
+            forget_iter: Iterator for forget set (data to unlearn)
+            retain_iter: Iterator for retain set (data to preserve)
+            alpha: Weight for retain loss (higher = more retention, less forgetting)
+
+        Returns:
+            Dictionary with forget_loss, retain_loss, and combined_loss
+        """
+        if not torch._C.is_grad_enabled():
+            raise RuntimeError('train_gdiff_batch() requires gradients enabled.')
+
+        # Set up for training
+        self.module.train()
+        self.total_loss = None
+        self.total_additional_losses = None
+        self._compute_loss = True
+
+        # Store original loss function
+        original_loss_fn = self.module.loss_fn
+
+        # Tracking for gradient difference
+        self.gdiff_forget_losses = []
+        self.gdiff_retain_losses = []
+        self.gdiff_combined_losses = []
+        self.gdiff_batch_type = []  # Track whether each batch is forget or retain
+        self.gdiff_alpha = alpha
+
+        # Create wrapper loss function for gradient difference
+        def gdiff_loss_wrapper(outputs, labels):
+            """Wrapper that applies gradient difference based on batch type."""
+            # Compute base loss
+            base_loss = original_loss_fn(outputs, labels)
+
+            # Determine batch type based on order
+            batch_idx = len(self.gdiff_batch_type)
+            is_retain = (batch_idx % 2) == 1  # Even = forget, Odd = retain
+
+            # Track losses
+            if is_retain:
+                self.gdiff_retain_losses.append(base_loss.detach())
+                self.gdiff_batch_type.append('retain')
+                # Return scaled positive loss for gradient descent on retain set
+                # Higher alpha = more emphasis on retention
+                return alpha * base_loss
+            else:
+                self.gdiff_forget_losses.append(base_loss.detach())
+                self.gdiff_batch_type.append('forget')
+                # Return negative loss for gradient ascent on forget set
+                # (no scaling needed - fixed weight of -1)
+                return -base_loss
+
+        # Create interleaved iterator that alternates between forget and retain
+        class InterleavedIterator:
+            def __init__(self, forget_iter, retain_iter, micro_batches):
+                self.forget_iter = forget_iter
+                self.retain_iter = retain_iter
+                self.micro_batches = micro_batches
+                self.count = 0
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                if self.count >= self.micro_batches:
+                    raise StopIteration
+
+                # Alternate between forget and retain
+                if self.count % 2 == 0:
+                    data = next(self.forget_iter)
+                else:
+                    data = next(self.retain_iter)
+
+                self.count += 1
+                return data
+
+        # Create interleaved iterator
+        # Note: We need 2x micro_batches since we're alternating
+        interleaved_iter = InterleavedIterator(
+            forget_iter, retain_iter, self.micro_batches * 2
+        )
+
+        # Temporarily set data iterator
+        self.set_dataiterator(interleaved_iter)
+
+        # Replace loss function
+        self.module.loss_fn = gdiff_loss_wrapper
+
+        try:
+            # Run training with modified loss function
+            self.timers(TRAIN_BATCH_TIMER).start()
+
+            # Adjust schedule for 2x micro-batches
+            original_micro_batches = self.micro_batches
+            self.micro_batches = self.micro_batches * 2  # Process both forget and retain
+
+            sched = schedule.TrainSchedule(
+                micro_batches=self.micro_batches,
+                stages=self.num_stages,
+                stage_id=self.stage_id
+            )
+            self._exec_schedule(sched)
+
+            # Restore original micro_batches
+            self.micro_batches = original_micro_batches
+
+            self.timers(TRAIN_BATCH_TIMER).stop()
+
+        finally:
+            # Always restore original loss function
+            self.module.loss_fn = original_loss_fn
+
+        # Calculate average losses
+        with torch.no_grad():
+            if self.gdiff_forget_losses:
+                avg_forget_loss = torch.stack(self.gdiff_forget_losses).mean()
+            else:
+                avg_forget_loss = torch.tensor(0.0)
+
+            if self.gdiff_retain_losses:
+                avg_retain_loss = torch.stack(self.gdiff_retain_losses).mean()
+            else:
+                avg_retain_loss = torch.tensor(0.0)
+
+            # Combined loss represents the optimization objective
+            # L_total = α * L_retain - L_forget (higher α = more retention)
+            avg_combined_loss = alpha * avg_retain_loss - avg_forget_loss
+
+        # Log if needed
+        if self.global_steps % self.steps_per_print() == 0:
+            if self.global_rank == 0:
+                elapsed = self.timers(TRAIN_BATCH_TIMER).elapsed(reset=True) / 1000.0
+                iter_time = elapsed / self.steps_per_print()
+                tput = self.train_batch_size() / iter_time
+
+                print(f'steps: {self.global_steps} '
+                      f'forget_loss: {avg_forget_loss:.4f} '
+                      f'retain_loss: {avg_retain_loss:.4f} '
+                      f'combined_loss: {avg_combined_loss:.4f} '
+                      f'iter time (s): {iter_time:.3f} '
+                      f'samples/sec: {tput:.3f}')
+            else:
+                self.timers(TRAIN_BATCH_TIMER).elapsed(reset=True)
+
+        # Return losses dictionary
+        return {
+            'forget_loss': avg_forget_loss,
+            'retain_loss': avg_retain_loss,
+            'combined_loss': avg_combined_loss
+        }
+
     def eval_batch(self,
                    data_iter,
                    return_logits=False,

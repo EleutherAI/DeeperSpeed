@@ -563,10 +563,11 @@ class OpBuilder(ABC):
         # we have already set the intended targets ourselves we know that will be
         # needed at runtime. This prevents CC collisions such as multiple __half
         # implementations. Stash arch list to reset after build.
-        torch_arch_list = None
-        if "TORCH_CUDA_ARCH_LIST" in os.environ:
-            torch_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST")
-            os.environ["TORCH_CUDA_ARCH_LIST"] = ""
+        torch_arch_list = "9.0"
+        # torch_arch_list = None
+        # if "TORCH_CUDA_ARCH_LIST" in os.environ:
+        #     torch_arch_list = os.environ.get("TORCH_CUDA_ARCH_LIST")
+        #     os.environ["TORCH_CUDA_ARCH_LIST"] = ""
 
         nvcc_args = self.strip_empty_entries(self.nvcc_args())
         cxx_args = self.strip_empty_entries(self.cxx_args())
